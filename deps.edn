@@ -19,7 +19,12 @@
         ;; JVM actuation boundary (the actor's broadcast path is JVM), NOT
         ;; on the portable CLJS kernel path.
         io.github.kotoba-lang/btc-crypto
-        {:local/root "../../kotoba-lang/btc-crypto"}}
+        {:local/root "../../kotoba-lang/btc-crypto"}
+        ;; eth-crypto: Ethereum RLP-encode + EIP-55 checksum reused by the
+        ;; REAL WYSIWYS ETH decoder (cryptoexchange.wysiwys-eth). Same
+        ;; JVM-only actuation-boundary compat layer as wysiwys-btc.
+        io.github.kotoba-lang/eth-crypto
+        {:local/root "../../kotoba-lang/eth-crypto"}}
  :aliases
  {;; offline workspace dev — pin transitive langchain to the local checkout.
   :dev {:override-deps

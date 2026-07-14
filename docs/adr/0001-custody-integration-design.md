@@ -86,8 +86,14 @@ procedure; nothing else may set it:
    > P2SH), reusing `kotoba-lang/btc-crypto`'s bech32/base58 encoders
    > for the script→address step it must invert; an unrecognized
    > script fails closed. JVM-only (btc-crypto is `byte-array`-based),
-   > which suits the JVM actuation boundary. ETH (RLP / EIP-712) is a
-   > follow-up. The two-independent-toolchain requirement above is the
+   > which suits the JVM actuation boundary. **ETH (2026-07-14)**:
+   > `cryptoexchange.wysiwys-eth` parses a raw unsigned ETH tx
+   > (legacy / EIP-2930 / EIP-1559) back to its `(to, value)`, adding
+   > the RLP DECODE direction on top of `kotoba-lang/eth-crypto`'s
+   > rlp-encode + EIP-55; a Safe-multisig `execTransaction` SafeTx
+   > struct-hash path (the real destination inside calldata) is the
+   > remaining follow-up and fails closed until then. The
+   > two-independent-toolchain requirement above is the
    > production goal; the shipped decoder is one real verifier plus the
    > portable `cryptoexchange.wysiwys` stand-in for the byte-compare
    > discipline.
