@@ -17,6 +17,7 @@
       -M:cljs -m cljs.main --target node \\
       -m cryptoexchange.portable-cljs-test-runner"
   (:require [clojure.test :as t :refer [run-tests]]
+            [cryptoexchange.attest-test]
             [cryptoexchange.governor-facade-test]
             [cryptoexchange.kernels.conflict-test]
             [cryptoexchange.kernels.conservation-test]
@@ -37,4 +38,5 @@
              'cryptoexchange.kernels.conflict-test
              'cryptoexchange.governor-facade-test
              'cryptoexchange.ledger-test
-             'cryptoexchange.matching-test))
+             'cryptoexchange.matching-test
+             'cryptoexchange.attest-test))
