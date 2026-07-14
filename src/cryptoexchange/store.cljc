@@ -25,11 +25,10 @@
   `cancel-order`): an event a fresh replay would reject is never
   persisted, so a stored log is always fully replayable by a third
   party — on either backend."
-  (:require #?(:clj [clojure.edn :as edn]
-               :cljs [cljs.reader :as edn])
-            [cryptoexchange.ledger :as ledger]
+  (:require [cryptoexchange.ledger :as ledger]
             [cryptoexchange.matching :as matching]
-            [langchain.db :as d]))
+            [langchain.db :as d]
+            [langchain-store.core :as ls]))
 
 (defprotocol Store
   (ledger-events [s] "the totally-ordered settlement event vector")
@@ -91,40 +90,28 @@
 
 ;; --------------------------- DatomicStore ----------------------------
 
+;; Events are one datom-entity per event, keyed by their sequencer
+;; number (:db.unique/identity — a double-append of a seq upserts
+;; instead of forking history), with the event map stored as an EDN
+;; blob. The codec / identity schema / seq-keyed read+append are the
+;; shared kotoba-lang/langchain-store machinery (ADR-2607141600) — the
+;; seam ~190 actors hand-roll; this store keeps only its domain wiring.
 (def ^:private schema
-  "Events are stored one datom-entity per event, keyed by their
-  sequencer number (:db.unique/identity — an accidental double-append
-  of a seq upserts instead of forking history), with the event map as
-  an EDN string so langchain.db doesn't expand it into sub-entities —
-  the same convention the sibling stores use."
-  {:ledger-event/seq {:db/unique :db.unique/identity}
-   :order-event/seq  {:db/unique :db.unique/identity}})
-
-(defn- enc [v] (pr-str v))
-(defn- dec* [s] (when s (edn/read-string s)))
-
-(defn- read-stream [conn seq-attr edn-attr]
-  (->> (d/q [:find '?s '?v
-             :where ['?e seq-attr '?s] ['?e edn-attr '?v]]
-            (d/db conn))
-       (sort-by first)
-       (mapv (comp dec* second))))
+  (ls/identity-schema [:ledger-event/seq :order-event/seq]))
 
 (defrecord DatomicStore [conn]
   Store
-  (ledger-events [_] (read-stream conn :ledger-event/seq :ledger-event/edn))
-  (order-events [_] (read-stream conn :order-event/seq :order-event/edn))
+  (ledger-events [_] (ls/read-stream conn :ledger-event/seq :ledger-event/edn))
+  (order-events [_] (ls/read-stream conn :order-event/seq :order-event/edn))
   (append-ledger-event! [s event]
     (let [r (try-ledger-append s event)]
       (when (:ok? r)
-        (d/transact! conn [{:ledger-event/seq (:seq event)
-                            :ledger-event/edn (enc event)}]))
+        (ls/append-blob! conn :ledger-event/seq :ledger-event/edn (:seq event) event))
       r))
   (append-order-event! [s event]
     (let [r (try-order-append s event)]
       (when (:ok? r)
-        (d/transact! conn [{:order-event/seq (:seq event)
-                            :order-event/edn (enc event)}]))
+        (ls/append-blob! conn :order-event/seq :order-event/edn (:seq event) event))
       r)))
 
 (defn datomic-store []

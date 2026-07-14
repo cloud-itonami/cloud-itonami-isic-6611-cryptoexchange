@@ -13,6 +13,12 @@
         ;; needing proof-of-reserves reuses one audited implementation.
         io.github.kotoba-lang/merkle-sum
         {:local/root "../../kotoba-lang/merkle-sum"}
+        ;; langchain-store: the shared langchain.db store seam (EDN-blob
+        ;; codec + identity schema + event-log helpers) that ~190 actors
+        ;; hand-roll; cryptoexchange.store is the reference adopter
+        ;; (ADR-2607141600).
+        io.github.kotoba-lang/langchain-store
+        {:local/root "../../kotoba-lang/langchain-store"}
         ;; btc-crypto: Bitcoin address encoders (bech32/base58) reused by
         ;; the REAL WYSIWYS BTC decoder (cryptoexchange.wysiwys-btc). JVM-
         ;; only (byte-array/System) — a deliberate compat layer at the
