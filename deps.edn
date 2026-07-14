@@ -12,7 +12,14 @@
         ;; (cryptoexchange.attest), extracted to kotoba-lang so any actor
         ;; needing proof-of-reserves reuses one audited implementation.
         io.github.kotoba-lang/merkle-sum
-        {:local/root "../../kotoba-lang/merkle-sum"}}
+        {:local/root "../../kotoba-lang/merkle-sum"}
+        ;; btc-crypto: Bitcoin address encoders (bech32/base58) reused by
+        ;; the REAL WYSIWYS BTC decoder (cryptoexchange.wysiwys-btc). JVM-
+        ;; only (byte-array/System) — a deliberate compat layer at the
+        ;; JVM actuation boundary (the actor's broadcast path is JVM), NOT
+        ;; on the portable CLJS kernel path.
+        io.github.kotoba-lang/btc-crypto
+        {:local/root "../../kotoba-lang/btc-crypto"}}
  :aliases
  {;; offline workspace dev — pin transitive langchain to the local checkout.
   :dev {:override-deps

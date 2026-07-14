@@ -39,7 +39,11 @@ publishes the business blueprint plus:
   `cryptoexchange.wysiwys` (the automatable core of the custody
   runbook §4 — two independent decoders reconstruct the signing
   payload from raw bytes and byte-compare before the custody kernel's
-  verifier-match flag can be 1), and `cryptoexchange.publish` +
+  verifier-match flag can be 1) with a **real Bitcoin backend**
+  `cryptoexchange.wysiwys-btc` (parses an actual raw unsigned BTC tx
+  back to its destination addresses+values, reusing
+  `kotoba-lang/btc-crypto`'s bech32/base58 encoders — JVM-only, at the
+  actuation boundary; ETH is a follow-up), and `cryptoexchange.publish` +
   `scripts/publish_attestation.cljs` (the daily PoR+PoL public
   artifact — canonical **EDN** with per-user inclusion proofs plus a
   Markdown summary; a reserves-only artifact is structurally

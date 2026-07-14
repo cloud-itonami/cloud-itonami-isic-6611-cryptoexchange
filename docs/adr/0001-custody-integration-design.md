@@ -80,6 +80,17 @@ procedure; nothing else may set it:
    page, or PSBT metadata field — and each independently derive:
    destination, asset, amount, fee, change address, and (ETH) the full
    EIP-712 domain + struct hash.
+   > **Implemented (BTC), 2026-07-14**: `cryptoexchange.wysiwys-btc`
+   > parses a real raw unsigned Bitcoin tx back to its
+   > `(destination address, value)` outputs (P2WPKH/P2WSH/P2TR/P2PKH/
+   > P2SH), reusing `kotoba-lang/btc-crypto`'s bech32/base58 encoders
+   > for the script→address step it must invert; an unrecognized
+   > script fails closed. JVM-only (btc-crypto is `byte-array`-based),
+   > which suits the JVM actuation boundary. ETH (RLP / EIP-712) is a
+   > follow-up. The two-independent-toolchain requirement above is the
+   > production goal; the shipped decoder is one real verifier plus the
+   > portable `cryptoexchange.wysiwys` stand-in for the byte-compare
+   > discipline.
 3. Both derivations are byte-compared (digest equality). Any mismatch
    → `verifier-match-flag` stays 0 → kernel code 6, no signature is
    produced, incident review opens. A compromised wallet UI (Bybit)
