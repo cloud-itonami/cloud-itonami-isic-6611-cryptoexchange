@@ -29,6 +29,7 @@
   are fixed here."
   (:require [cryptoexchange.governor :as governor]
             [cryptoexchange.ledger :as ledger]
+            [merkle-sum.core :as merkle]
             #?(:clj [clojure.string :as str])))
 
 ;; ------------------------------ hashing ------------------------------
@@ -58,109 +59,56 @@
   [x]
   (if (keyword? x) (name x) (str x)))
 
-(defn leaf-hash [account asset amount]
+(defn leaf-hash
+  "Domain leaf preimage: colon-free names so the published EDN string is
+  exactly what was hashed (see docs/verify-inclusion.md). The generic
+  tree/proof/verify are `merkle-sum.core`'s; this is the PoR-specific
+  part that stays here."
+  [account asset amount]
   (sha256-hex (str "leaf|" (pname account) "|" (pname asset) "|" amount)))
-
-(defn node-hash [left-hash left-sum right-hash right-sum]
-  (sha256-hex (str "node|" left-hash "|" left-sum "|" right-hash "|" right-sum)))
 
 ;; ------------------------------ building -----------------------------
 
 (defn liability-leaves
-  "Deterministic leaf row: customer balances (operator excluded) for
-  one asset, sorted by account name, zero balances dropped."
+  "Deterministic leaf row for `merkle-sum.core`: customer balances
+  (operator excluded) for one asset, zero balances dropped. `:id` is the
+  account (the tree's sort/lookup key); `:hash`/`:sum` feed the tree;
+  `:account`/`:amount` are kept for this ns's own convenience."
   [ledger asset]
   (->> (dissoc (ledger/balances ledger) ledger/operator-account)
        (keep (fn [[account assets]]
                (let [amount (get assets asset 0)]
                  (when (pos? amount)
-                   {:account account
+                   {:id account
+                    :account account
                     :amount amount
                     :hash (leaf-hash account asset amount)
                     :sum amount}))))
-       (sort-by (comp str :account))
        vec))
 
-(defn- level-up
-  "Combine one level pairwise; an odd trailing node carries up as-is."
-  [nodes]
-  (loop [nodes nodes acc []]
-    (cond
-      (empty? nodes) acc
-      (= 1 (count nodes)) (conj acc (first nodes))
-      :else
-      (let [[l r & more] nodes]
-        (recur more
-               (conj acc {:hash (node-hash (:hash l) (:sum l) (:hash r) (:sum r))
-                          :sum (+ (:sum l) (:sum r))}))))))
-
 (defn build-tree
-  "Merkle-sum tree over one asset's liabilities.
-  {:asset a :leaves [...] :levels [[leaf-level] [level-1] ... [root]]
-   :root {:hash h :sum total}} — empty book gets a defined empty root."
+  "Merkle-sum tree over one asset's liabilities — delegates to
+  `merkle-sum.core/build-tree` (leaves sorted by account id via `str`).
+  Returns its `{:leaves :levels :root}` with `:asset` assoc'd."
   [ledger asset]
-  (let [leaves (liability-leaves ledger asset)]
-    (if (empty? leaves)
-      {:asset asset :leaves [] :levels []
-       :root {:hash (sha256-hex "empty") :sum 0}}
-      (let [levels (loop [level leaves acc [leaves]]
-                     (if (= 1 (count level))
-                       acc
-                       (let [next-level (level-up level)]
-                         (recur next-level (conj acc next-level)))))]
-        {:asset asset
-         :leaves leaves
-         :levels levels
-         :root (first (peek levels))}))))
+  (assoc (merkle/build-tree sha256-hex (liability-leaves ledger asset))
+         :asset asset))
 
 ;; ------------------------------ proofs -------------------------------
 
 (defn inclusion-proof
-  "Sibling path for `account`'s leaf: [{:side :left|:right :hash h
-  :sum s} ...] from leaf level upward (carried-up levels contribute no
-  step). nil when the account has no leaf."
+  "Sibling path for `account`'s leaf (see `merkle-sum.core/inclusion-proof`)."
   [tree account]
-  (when-let [idx (first (keep-indexed
-                         (fn [i leaf] (when (= (:account leaf) account) i))
-                         (:leaves tree)))]
-    (loop [i idx
-           levels (:levels tree)
-           proof []]
-      (let [level (first levels)]
-        (if (or (nil? level) (= 1 (count level)))
-          proof
-          (let [sibling-i (if (even? i) (inc i) (dec i))
-                carried? (>= sibling-i (count level))
-                proof' (if carried?
-                         proof
-                         (let [s (nth level sibling-i)]
-                           (conj proof {:side (if (even? i) :right :left)
-                                        :hash (:hash s)
-                                        :sum (:sum s)})))]
-            (recur (quot i 2) (rest levels) proof')))))))
+  (merkle/inclusion-proof tree account))
 
 (defn verify-inclusion
-  "Third-party verification: recompute from the claimed (account,
-  asset, amount) leaf through the proof to the published root. Rejects
-  any negative sum along the path (sum-shrinking attack) and any
-  root mismatch in HASH or SUM."
+  "Third-party verification of an (account, asset, amount) claim against
+  a published root — recomputes the leaf preimage here, then delegates
+  the walk (incl. sum-shrinking rejection) to `merkle-sum.core/verify`."
   [account asset amount proof root]
-  (if (or (not (integer? amount)) (neg? amount))
-    false
-    (loop [h (leaf-hash account asset amount)
-           s amount
-           steps proof]
-      (if (empty? steps)
-        (and (= h (:hash root)) (= s (:sum root)))
-        (let [{:keys [side] :as step} (first steps)]
-          (if (or (neg? (:sum step)) (nil? (:hash step)))
-            false
-            (let [[nh nsum] (if (= side :left)
-                              [(node-hash (:hash step) (:sum step) h s)
-                               (+ (:sum step) s)]
-                              [(node-hash h s (:hash step) (:sum step))
-                               (+ s (:sum step))])]
-              (recur nh nsum (rest steps)))))))))
+  (if (integer? amount)
+    (merkle/verify sha256-hex (leaf-hash account asset amount) amount proof root)
+    false))
 
 ;; ---------------------------- attestation ----------------------------
 

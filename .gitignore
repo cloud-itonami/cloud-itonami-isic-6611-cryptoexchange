@@ -1,0 +1,6 @@
+.cpcache/
+.clj-kondo/.cache/
+target/
+out/
+node_modules/
+*.log
