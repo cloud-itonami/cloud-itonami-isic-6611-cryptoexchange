@@ -23,6 +23,15 @@ publishes the business blueprint plus:
   and `cryptoexchange.store` (MemStore ≡ DatomicStore contract over
   `langchain.db` — the kotoba-datomic seam; every append validates
   through the domain folds first).
+- **M3 — custody detailed design**
+  ([docs/adr/0001](docs/adr/0001-custody-integration-design.md)):
+  on-chain verifiable multisig for cold (the quorum policy itself is
+  public — the anti-QuadrigaCX property lives in the address format),
+  key ceremony with no single point of assembly, chain-enforced
+  dead-man recovery, the dual-verifier WYSIWYS signing runbook
+  (Bybit/DMM countermeasure), and the operational mapping onto the
+  custody kernel's wire codes. Design-only: no real funds or keys
+  (INV-14).
 
 The suite is portable `.cljc`; the **primary gate is ClojureScript**
 (`clojure -Sdeps '{:paths ["src" "test"]}' -M:cljs -m cljs.main
