@@ -41,8 +41,12 @@ publishes the business blueprint plus:
   payload from raw bytes and byte-compare before the custody kernel's
   verifier-match flag can be 1), and `cryptoexchange.publish` +
   `scripts/publish_attestation.cljs` (the daily PoR+PoL public
-  artifact — EDN with per-user inclusion proofs plus a Markdown
-  summary; a reserves-only artifact is structurally unbuildable).
+  artifact — EDN/JSON with per-user inclusion proofs plus a Markdown
+  summary; a reserves-only artifact is structurally unbuildable). The
+  leaf preimage uses colon-free published names so the JSON is
+  **independently verifiable** — the exact algorithm is
+  [docs/verify-inclusion.md](docs/verify-inclusion.md), whose worked
+  example reproduces the root with plain `sha256sum`, no project code.
   Still design/testnet-only: no real funds, keys, or chain broadcast
   (INV-14).
 

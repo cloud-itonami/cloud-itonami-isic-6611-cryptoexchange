@@ -20,8 +20,11 @@
 
 (def ^:private fixture-root-hash
   "Pinned on 2026-07-14 (JVM). The CLJS primary gate must reproduce it
-  byte-for-byte — this constant is the cross-runtime determinism lock."
-  "3834e01ebc217b22c2e4f9c4d5f6e29ce8b7a5a85d68e8b5f67db1a658979033")
+  byte-for-byte — this constant is the cross-runtime determinism lock.
+  Re-pinned when the leaf preimage switched to colon-free account/asset
+  names (`attest/pname`) so the published JSON is independently
+  verifiable — see docs/verify-inclusion.md."
+  "8f34cecdd7527c650c312b27c4df2167a68077e219c0cfcec5a5b99a4321f4ca")
 
 (deftest root-sum-is-total-customer-liability
   (let [tree (attest/build-tree fixture :btc)]

@@ -49,8 +49,17 @@
          (.update s "utf8")
          (.digest "hex"))))
 
+(defn- pname
+  "Stable public name for an account/asset: a keyword's name WITHOUT its
+  leading colon (:alice -> \"alice\", :btc -> \"btc\"), a string as-is.
+  The published artifact renders accounts/assets this same way, so a
+  third party recomputes the identical leaf preimage from the JSON —
+  the leaf hash must NOT depend on Clojure's keyword print form."
+  [x]
+  (if (keyword? x) (name x) (str x)))
+
 (defn leaf-hash [account asset amount]
-  (sha256-hex (str "leaf|" account "|" asset "|" amount)))
+  (sha256-hex (str "leaf|" (pname account) "|" (pname asset) "|" amount)))
 
 (defn node-hash [left-hash left-sum right-hash right-sum]
   (sha256-hex (str "node|" left-hash "|" left-sum "|" right-hash "|" right-sum)))
