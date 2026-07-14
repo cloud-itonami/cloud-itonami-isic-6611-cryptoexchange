@@ -27,7 +27,9 @@
             [cryptoexchange.kernels.solvency-test]
             [cryptoexchange.ledger-test]
             [cryptoexchange.matching-test]
-            [cryptoexchange.store-contract-test]))
+            [cryptoexchange.publish-test]
+            [cryptoexchange.store-contract-test]
+            [cryptoexchange.wysiwys-test]))
 
 #?(:cljs
    (defmethod t/report [:cljs.test/default :end-run-tests] [m]
@@ -45,4 +47,6 @@
              'cryptoexchange.attest-test
              'cryptoexchange.store-contract-test
              'cryptoexchange.censor-test
-             'cryptoexchange.phase-test))
+             'cryptoexchange.phase-test
+             'cryptoexchange.wysiwys-test
+             'cryptoexchange.publish-test))

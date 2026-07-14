@@ -32,6 +32,19 @@ publishes the business blueprint plus:
   (Bybit/DMM countermeasure), and the operational mapping onto the
   custody kernel's wire codes. Design-only: no real funds or keys
   (INV-14).
+- **M4 — actor + tooling**: `cryptoexchange.actor` (a langgraph-clj
+  StateGraph — advisor ⊣ ExchangeGovernor `cryptoexchange.censor` +
+  rollout `cryptoexchange.phase`, `interrupt-before` human sign-off,
+  the actuation ops never auto-commit at any phase),
+  `cryptoexchange.wysiwys` (the automatable core of the custody
+  runbook §4 — two independent decoders reconstruct the signing
+  payload from raw bytes and byte-compare before the custody kernel's
+  verifier-match flag can be 1), and `cryptoexchange.publish` +
+  `scripts/publish_attestation.cljs` (the daily PoR+PoL public
+  artifact — EDN with per-user inclusion proofs plus a Markdown
+  summary; a reserves-only artifact is structurally unbuildable).
+  Still design/testnet-only: no real funds, keys, or chain broadcast
+  (INV-14).
 
 The suite is portable `.cljc`; the **primary gate is ClojureScript**
 (`clojure -Sdeps '{:paths ["src" "test"]}' -M:cljs -m cljs.main
