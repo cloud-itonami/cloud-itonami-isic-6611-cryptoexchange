@@ -5,9 +5,18 @@ exchange** — a role-suffix satellite of ISIC 6611 (administration of
 financial markets), designed in ADR-2607141200 of the superproject
 ledger.
 
-**Maturity: `:blueprint`** — this repository publishes the business
-blueprint only. There is **no actor implementation yet**, and none is
-claimed. Division 66 sits in **rollout Wave 0
+**Maturity: `:blueprint` (M1 kernels landed)** — this repository
+publishes the business blueprint plus the four **safety kernels** of
+the design (M1 of ADR-2607141200): `cryptoexchange.kernels.solvency`
+/ `custody` / `conservation` / `conflict`, integer-coded and
+fail-closed in the safe-kotoba subset (ADR-2607121200 discipline,
+battery + case-count locks, independent-oracle parity matrices), with
+the `cryptoexchange.governor` keyword façade. The suite is portable
+`.cljc`; the **primary gate is ClojureScript**
+(`clojure -Sdeps '{:paths ["src" "test"]}' -M:cljs -m cljs.main
+--target node -m cryptoexchange.portable-cljs-test-runner`), JVM
+(`clojure -M:test`) is the compat gate. There is **no actor
+implementation yet**, and none is claimed. Division 66 sits in **rollout Wave 0
 (settlement-information root)** of the reverse-toposort plan
 (ADR-2607121000), so implementation is *not* robotics-gated — it is
 gated on the M1+ milestones of the design ADR and, permanently, on

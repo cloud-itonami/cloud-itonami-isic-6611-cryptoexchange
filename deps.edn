@@ -1,0 +1,21 @@
+{:paths ["src"]
+ ;; Kernels + façade only (M1 of ADR-2607141200) — zero runtime deps,
+ ;; all portable .cljc. The langgraph actor (M2+) will add
+ ;; io.github.com-junkawasaki/langgraph-clj the same way the sibling
+ ;; wave-0 finance actors (e.g. cloud-itonami-isic-6511) do.
+ :aliases
+ {:test {:extra-paths ["test"]
+         :extra-deps {io.github.cognitect-labs/test-runner
+                      {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
+         :main-opts ["-m" "cognitect.test-runner"]
+         :exec-fn cognitect.test-runner.api/test}
+  ;; PRIMARY gate: the same portable .cljc suite under a real
+  ;; ClojureScript host (runtime priority: cljs first, JVM compat).
+  ;;   clojure -Sdeps '{:paths ["src" "test"]}' -M:cljs \
+  ;;     -m cljs.main --target node -m cryptoexchange.portable-cljs-test-runner
+  :cljs {:extra-deps {org.clojure/clojurescript {:mvn/version "1.11.132"}}}
+  ;; static analysis -- clj-kondo from deps (no binary), errors fail CI.
+  :lint {:replace-deps {clj-kondo/clj-kondo {:mvn/version "2024.11.14"}}
+         :main-opts    ["-m" "clj-kondo.main"
+                        "--lint" "src" "test"
+                        "--fail-level" "error"]}}}
