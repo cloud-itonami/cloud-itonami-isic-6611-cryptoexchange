@@ -1,24 +1,26 @@
 {:paths ["src"]
- ;; langchain-clj provides langchain.db, the Datomic-API-compatible EAV
- ;; store behind cryptoexchange.store's DatomicStore (M2d) — the
- ;; kotoba-datomic seam. It lives in the com-junkawasaki org of this
- ;; workspace. This repo is standalone (forkable outside the
- ;; workspace); the :local/root path only resolves inside the monorepo
- ;; checkout — a standalone fork should override it with git
- ;; coordinates. The langgraph actor (M3+) will add
- ;; io.github.com-junkawasaki/langgraph-clj the same way the sibling
- ;; wave-0 finance actors (e.g. cloud-itonami-isic-6511) do.
- :deps {io.github.com-junkawasaki/langchain-clj
-        {:local/root "../../com-junkawasaki/langchain-clj"}}
+ ;; langgraph-clj powers the cryptoexchange.actor StateGraph (M4) and
+ ;; brings langchain-clj transitively — langchain.db is the Datomic-API-
+ ;; compatible EAV store behind cryptoexchange.store's DatomicStore (M2d,
+ ;; the kotoba-datomic seam). Same layering as the sibling wave-0 finance
+ ;; actors (e.g. cloud-itonami-isic-6511). These :local/root paths only
+ ;; resolve inside the monorepo checkout; a standalone fork should
+ ;; override them with git coordinates.
+ :deps {io.github.com-junkawasaki/langgraph-clj
+        {:local/root "../../com-junkawasaki/langgraph-clj"}}
  :aliases
- {:test {:extra-paths ["test"]
+ {;; offline workspace dev — pin transitive langchain to the local checkout.
+  :dev {:override-deps
+        {io.github.kotoba-lang/langchain
+         {:local/root "../../com-junkawasaki/langchain-clj"}}}
+  :test {:extra-paths ["test"]
          :extra-deps {io.github.cognitect-labs/test-runner
                       {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
          :main-opts ["-m" "cognitect.test-runner"]
          :exec-fn cognitect.test-runner.api/test}
   ;; PRIMARY gate: the same portable .cljc suite under a real
   ;; ClojureScript host (runtime priority: cljs first, JVM compat).
-  ;;   clojure -Sdeps '{:paths ["src" "test"]}' -M:cljs \
+  ;;   clojure -Sdeps '{:paths ["src" "test"]}' -M:dev:cljs \
   ;;     -m cljs.main --target node -m cryptoexchange.portable-cljs-test-runner
   :cljs {:extra-deps {org.clojure/clojurescript {:mvn/version "1.11.132"}}}
   ;; static analysis -- clj-kondo from deps (no binary), errors fail CI.

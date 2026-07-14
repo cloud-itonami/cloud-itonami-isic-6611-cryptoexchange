@@ -18,7 +18,9 @@
       -m cryptoexchange.portable-cljs-test-runner"
   (:require [clojure.test :as t :refer [run-tests]]
             [cryptoexchange.attest-test]
+            [cryptoexchange.censor-test]
             [cryptoexchange.governor-facade-test]
+            [cryptoexchange.phase-test]
             [cryptoexchange.kernels.conflict-test]
             [cryptoexchange.kernels.conservation-test]
             [cryptoexchange.kernels.custody-test]
@@ -41,4 +43,6 @@
              'cryptoexchange.ledger-test
              'cryptoexchange.matching-test
              'cryptoexchange.attest-test
-             'cryptoexchange.store-contract-test))
+             'cryptoexchange.store-contract-test
+             'cryptoexchange.censor-test
+             'cryptoexchange.phase-test))
