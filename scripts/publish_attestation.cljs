@@ -39,14 +39,11 @@
           artifact (publish/build-artifact (:ledger replay) reserves as-of)
           safe (str/replace as-of #"[^0-9A-Za-z-]" "_")
           edn-path (str out-dir "/attestation-" safe ".edn")
-          json-path (str out-dir "/attestation-" safe ".json")
           md-path (str out-dir "/attestation-" safe ".md")]
       (fs/writeFileSync edn-path (publish/render-edn artifact))
-      (fs/writeFileSync json-path (publish/render-json artifact))
       (fs/writeFileSync md-path (publish/render-summary-md artifact))
       (println "overall-solvent?" (:overall-solvent? artifact))
       (println "wrote" edn-path)
-      (println "wrote" json-path)
       (println "wrote" md-path))))
 
 (apply -main *command-line-args*)

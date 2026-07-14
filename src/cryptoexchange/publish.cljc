@@ -52,49 +52,17 @@
      :assets per-asset}))
 
 (defn render-edn
-  "Canonical EDN serialization — the machine-verifiable artifact."
+  "Canonical serialization — the machine-verifiable artifact. EDN is the
+  single published format (repo convention: registries, ADRs, blueprints
+  are all EDN, and a verifier written in the fleet's own runtime stack —
+  kotoba wasm > clojurewasm > ClojureScript > nbb — reads EDN natively).
+  A verifier in any other language reconstructs the same leaf/node
+  hashes from the algorithm in docs/verify-inclusion.md, independent of
+  the serialization. If a public multi-language discovery surface ever
+  needs JSON, that is a deliberate, separately-decided step, not a
+  second rendering carried here."
   [artifact]
   (pr-str artifact))
-
-;; ------------------------------- JSON --------------------------------
-;; A tiny, deterministic JSON encoder for the artifact's shape (no
-;; dependency, portable JVM/CLJS). Map keys are sorted by name so the
-;; published JSON is byte-stable, and keywords render as their name
-;; (:alice -> "alice", :left -> "left") so a browser/third-party
-;; verifier can consume the artifact without an EDN reader.
-
-(defn- json-escape [s]
-  (str/escape s {\" "\\\"" \\ "\\\\" \newline "\\n" \return "\\r" \tab "\\t"}))
-
-(defn- json-str [s] (str "\"" (json-escape s) "\""))
-
-(defn- ->json [v]
-  (cond
-    (nil? v) "null"
-    (boolean? v) (if v "true" "false")
-    (integer? v) (str v)
-    ;; full keyword incl. namespace (:cryptoexchange/attestation ->
-    ;; "cryptoexchange/attestation"; :alice -> "alice") via the printed
-    ;; form minus the leading colon.
-    (keyword? v) (json-str (subs (str v) 1))
-    (string? v) (json-str v)
-    (map? v) (str "{"
-                  (str/join ","
-                            (map (fn [[k val]]
-                                   (str (json-str (if (keyword? k) (name k) (str k)))
-                                        ":" (->json val)))
-                                 (sort-by (fn [[k _]] (if (keyword? k) (name k) (str k))) v)))
-                  "}")
-    (sequential? v) (str "[" (str/join "," (map ->json v)) "]")
-    (number? v) (str v)
-    :else (json-str (str v))))
-
-(defn render-json
-  "Deterministic JSON serialization of the artifact — the web/third-
-  party-consumable surface (the browser verifier reads this, not EDN).
-  Keys sorted, keywords as names."
-  [artifact]
-  (->json artifact))
 
 (defn- yn [b] (if b "yes" "no"))
 

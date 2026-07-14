@@ -7,21 +7,26 @@ exchange's code** — so this document specifies the algorithm precisely
 enough to implement in any language, and the worked example below is
 reproduced with plain `sha256` (no project code at all).
 
-The exchange publishes, per day, `attestation-<as-of>.json` (see
-`cryptoexchange.publish` / `scripts/publish_attestation.cljs`). You need
-three things from it, for your asset:
+The exchange publishes, per day, `attestation-<as-of>.edn` (the single
+canonical format; see `cryptoexchange.publish` /
+`scripts/publish_attestation.cljs`). EDN reads natively in the fleet's
+own runtime stack (kotoba wasm > clojurewasm > ClojureScript > nbb); in
+any other language, an EDN parser or a couple of lines of parsing gets
+you the fields — the verification below is serialization-agnostic. You
+need three things from the artifact, for your asset:
 
-- your `inclusion-proofs.<account>.amount` (your balance) and
-  `.proof` (the sibling path);
-- the asset's `liability-root` (`{hash, sum}`);
+- your `:inclusion-proofs {<account> {:amount .. :proof ..}}` — your
+  balance and the sibling path;
+- the asset's `:liability-root` (`{:hash .. :sum ..}`);
 - the asset name.
 
 ## Hashing
 
 All hashes are **SHA-256 over a UTF-8 ASCII string**, rendered as
-lowercase hex. There are exactly two preimages. Note there are **no
-colons on the account/asset** — they are the plain published names, so
-the JSON you read is exactly what was hashed:
+lowercase hex. There are exactly two preimages. The account/asset go in
+by their **plain name with no leading colon** — even though EDN prints
+them as keywords (`:alice`), the hash preimage uses `alice`, so the
+preimage never depends on a serialization's syntax:
 
 ```
 leaf  hash:  sha256_hex( "leaf|" + account + "|" + asset + "|" + amount )

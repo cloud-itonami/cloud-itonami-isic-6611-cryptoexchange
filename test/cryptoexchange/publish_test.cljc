@@ -60,24 +60,6 @@
     (is (string? s))
     (is (= a (edn/read-string s)) "canonical EDN artifact round-trips")))
 
-(deftest json-is-deterministic-and-web-consumable
-  (let [a (publish/build-artifact led reserves "2026-07-14T00:00:00Z")
-        js (publish/render-json a)]
-    (testing "byte-stable: same artifact renders identically twice"
-      (is (= js (publish/render-json a))))
-    (testing "carries both sides + keyword names as strings"
-      (is (re-find #"\"overall-solvent\?\":true" js))
-      (is (re-find #"\"kind\":\"cryptoexchange/attestation\"" js))
-      (is (re-find #"\"alice\"" js) "account keyword rendered as a name")
-      (is (re-find #"\"left\"|\"right\"" js) "proof step side rendered as a name"))
-    #?(:cljs
-       (testing "valid JSON a browser verifier can parse"
-         (let [parsed (js->clj (js/JSON.parse js) :keywordize-keys false)]
-           (is (= true (get parsed "overall-solvent?")))
-           (let [btc (first (filter #(= "btc" (get % "asset")) (get parsed "assets")))]
-             (is (= 500 (get-in btc ["liability-root" "sum"])))
-             (is (contains? (get btc "inclusion-proofs") "alice"))))))))
-
 (deftest markdown-summary-shows-both-sides
   (let [md (publish/render-summary-md (publish/build-artifact led reserves "2026-07-14"))]
     (is (re-find #"Proof of Reserves \+ Liabilities" md))
