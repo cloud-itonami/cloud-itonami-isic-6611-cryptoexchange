@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PoR/PoL Inclusion Proof Verifier</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    max-width: 860px;
+    margin: 2rem auto;
+    padding: 0 1.25rem;
+    line-height: 1.5;
+  }
+  h1 { font-size: 1.4rem; }
+  h2 { font-size: 1.1rem; margin-top: 2rem; }
+  textarea {
+    width: 100%;
+    box-sizing: border-box;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.85rem;
+    min-height: 10rem;
+  }
+  label { display: block; margin-top: 0.75rem; font-weight: 600; }
+  select, input[type=file] { width: 100%; box-sizing: border-box; padding: 0.4rem; margin-top: 0.25rem; }
+  button {
+    margin-top: 1.25rem;
+    padding: 0.6rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #result {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    display: none;
+  }
+  #result.pass { background: #d4f7d4; color: #0a4a0a; display: block; }
+  #result.fail { background: #f7d4d4; color: #4a0a0a; display: block; }
+  @media (prefers-color-scheme: dark) {
+    #result.pass { background: #123a12; color: #a8f0a8; }
+    #result.fail { background: #3a1212; color: #f0a8a8; }
+  }
+  #steps {
+    margin-top: 1rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+    background: rgba(127,127,127,0.08);
+    padding: 0.75rem;
+    border-radius: 6px;
+    display: none;
+  }
+  .hash { opacity: 0.75; }
+  .err { color: #b00; font-weight: 600; }
+  code { font-size: 0.9em; }
+</style>
+</head>
+<body>
+
+<h1>PoR/PoL Inclusion Proof Verifier</h1>
+
+<p>
+  This page independently verifies your inclusion in a published
+  Proof-of-Reserves / Proof-of-Liabilities attestation
+  (<code>ADR-2607141200</code> INV-7), reproducing the hash walk from
+  <code>docs/verify-inclusion.md</code> yourself, in your own browser.
+  <strong>It does not trust or import any code from the exchange</strong> —
+  everything below is a self-contained EDN reader and SHA-256 (via your
+  browser's own Web Crypto API), written independently from this
+  specification. View source to audit it; it never sends your data
+  anywhere (there is no network request in this page at all).
+</p>
+
+<h2>1. Paste or load the published attestation</h2>
+<label for="artifact-file">Load an <code>attestation-&lt;date&gt;.edn</code> file</label>
+<input type="file" id="artifact-file" accept=".edn,text/plain">
+<label for="artifact-text">…or paste the EDN text directly</label>
+<textarea id="artifact-text" placeholder="{:kind :cryptoexchange/attestation, :assets [...], ...}"></textarea>
+
+<h2>2. Choose your asset and account</h2>
+<label for="asset-select">Asset</label>
+<select id="asset-select"><option value="">Parse the artifact above first…</option></select>
+<label for="account-select">Account</label>
+<select id="account-select"><option value="">…</option></select>
+
+<button id="verify-btn" type="button">Verify my inclusion</button>
+
+<div id="result"></div>
+<div id="steps"></div>
+
+<script>
+"use strict";
+
+/* ---------------------------------------------------------------------
+ * Minimal EDN reader — scoped ONLY to the shapes this attestation
+ * artifact actually uses: maps {}, vectors [], keywords :foo / :foo/bar,
+ * strings "...", integers, booleans, nil. Not a general-purpose EDN
+ * parser (no sets/lists/tagged literals/floats needed here). Written
+ * independently of the exchange's own reader -- that independence is
+ * the entire point of this page.
+ * ------------------------------------------------------------------- */
+
+function ednTokenize(s) {
+  const tokens = [];
+  let i = 0;
+  const n = s.length;
+  while (i < n) {
+    const c = s[i];
+    if (c === " " || c === "\t" || c === "\n" || c === "\r" || c === ",") { i++; continue; }
+    if (c === "{" || c === "}" || c === "[" || c === "]" || c === "(" || c === ")") {
+      tokens.push(c); i++; continue;
+    }
+    if (c === '"') {
+      let j = i + 1, out = "";
+      while (j < n && s[j] !== '"') {
+        if (s[j] === "\\" && j + 1 < n) {
+          const esc = s[j + 1];
+          out += (esc === "n") ? "\n" : (esc === "t") ? "\t" : esc;
+          j += 2;
+        } else {
+          out += s[j]; j++;
+        }
+      }
+      tokens.push({ type: "string", value: out });
+      i = j + 1;
+      continue;
+    }
+    // symbol-ish token: keyword / number / true / false / nil, runs
+    // until the next delimiter or whitespace.
+    let j = i;
+    while (j < n && !" \t\n\r,{}[]()\"".includes(s[j])) j++;
+    tokens.push(s.slice(i, j));
+    i = j;
+  }
+  return tokens;
+}
+
+function ednParseToken(tok) {
+  if (typeof tok === "object") return tok.value; // already-parsed string
+  if (tok === "true") return true;
+  if (tok === "false") return false;
+  if (tok === "nil") return null;
+  if (tok[0] === ":") return { edn_keyword: tok.slice(1) };
+  if (/^-?\d+$/.test(tok)) return parseInt(tok, 10);
+  if (/^-?\d+\.\d+$/.test(tok)) return parseFloat(tok);
+  return tok; // bare symbol, unused in this artifact shape
+}
+
+function ednParse(text) {
+  const tokens = ednTokenize(text);
+  let pos = 0;
+
+  function parseValue() {
+    const t = tokens[pos];
+    if (t === "{") return parseMap();
+    if (t === "[") return parseVector();
+    pos++;
+    return ednParseToken(t);
+  }
+
+  function parseMap() {
+    pos++; // consume {
+    const entries = [];
+    while (tokens[pos] !== "}") {
+      if (pos >= tokens.length) throw new Error("unterminated map");
+      const k = parseValue();
+      const v = parseValue();
+      entries.push([keyToJsKey(k), v]);
+    }
+    pos++; // consume }
+    const out = {};
+    for (const [k, v] of entries) out[k] = v;
+    return out;
+  }
+
+  function parseVector() {
+    pos++; // consume [
+    const out = [];
+    while (tokens[pos] !== "]") {
+      if (pos >= tokens.length) throw new Error("unterminated vector");
+      out.push(parseValue());
+    }
+    pos++; // consume ]
+    return out;
+  }
+
+  const result = parseValue();
+  if (pos < tokens.length) throw new Error("trailing content after top-level form");
+  return result;
+}
+
+// Map EDN keys to plain JS property names: a keyword becomes its bare
+// name (":liability-root" -> "liability-root"); anything else (a
+// string key, if ever used) passes through as-is.
+function keyToJsKey(k) {
+  if (k && typeof k === "object" && "edn_keyword" in k) return k.edn_keyword;
+  return k;
+}
+
+// Unwrap a parsed value that might be an EDN keyword wrapper into its
+// plain string name (used for :side, :asset, account keys, etc).
+function ednName(v) {
+  if (v && typeof v === "object" && "edn_keyword" in v) return v.edn_keyword;
+  return v;
+}
+
+/* ---------------------------------------------------------------------
+ * Hashing -- SHA-256 over UTF-8, lowercase hex, via the browser's own
+ * Web Crypto API (no external library, no project code).
+ * ------------------------------------------------------------------- */
+
+async function sha256Hex(str) {
+  const bytes = new TextEncoder().encode(str);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function leafHash(account, asset, amount) {
+  return sha256Hex(`leaf|${account}|${asset}|${amount}`);
+}
+
+function nodeHash(leftHash, leftSum, rightHash, rightSum) {
+  return sha256Hex(`node|${leftHash}|${leftSum}|${rightHash}|${rightSum}`);
+}
+
+/* ---------------------------------------------------------------------
+ * Verification algorithm -- transliterated directly from
+ * docs/verify-inclusion.md's pseudocode (leaf -> root walk, rejecting
+ * any negative intermediate sum, i.e. sum-shrinking).
+ * ------------------------------------------------------------------- */
+
+async function verifyInclusion(account, asset, amount, proof, root) {
+  const steps = [];
+  if (amount < 0) return { ok: false, steps, reason: "negative amount" };
+  let h = await leafHash(account, asset, amount);
+  let s = amount;
+  steps.push(`leaf(${account}, ${asset}, ${amount}) = ${h}`);
+  for (const step of proof) {
+    const side = ednName(step.side);
+    const stepSum = step.sum;
+    if (stepSum < 0) return { ok: false, steps, reason: "sum-shrinking rejected (negative sibling sum)" };
+    if (side === "left") {
+      h = await nodeHash(step.hash, stepSum, h, s);
+      s = stepSum + s;
+    } else if (side === "right") {
+      h = await nodeHash(h, s, step.hash, stepSum);
+      s = s + stepSum;
+    } else {
+      return { ok: false, steps, reason: `unrecognized proof step side: ${side}` };
+    }
+    steps.push(`node(side=${side}, sibling.sum=${stepSum}) = ${h}  (running sum ${s})`);
+  }
+  const ok = h === root.hash && s === root.sum;
+  steps.push(`published root: hash=${root.hash} sum=${root.sum}`);
+  steps.push(`recomputed:     hash=${h} sum=${s}`);
+  return { ok, steps, reason: ok ? null : "hash or sum mismatch against the published root" };
+}
+
+/* ---------------------------------------------------------------------
+ * UI wiring
+ * ------------------------------------------------------------------- */
+
+let parsedArtifact = null;
+
+const fileInput = document.getElementById("artifact-file");
+const textArea = document.getElementById("artifact-text");
+const assetSelect = document.getElementById("asset-select");
+const accountSelect = document.getElementById("account-select");
+const resultDiv = document.getElementById("result");
+const stepsDiv = document.getElementById("steps");
+const verifyBtn = document.getElementById("verify-btn");
+
+fileInput.addEventListener("change", async () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+  textArea.value = await file.text();
+  parseAndPopulate();
+});
+
+textArea.addEventListener("input", parseAndPopulate);
+
+function clearResult() {
+  resultDiv.className = "";
+  resultDiv.style.display = "none";
+  stepsDiv.style.display = "none";
+}
+
+function parseAndPopulate() {
+  clearResult();
+  const text = textArea.value.trim();
+  assetSelect.innerHTML = "";
+  accountSelect.innerHTML = "";
+  if (!text) {
+    assetSelect.innerHTML = '<option value="">Parse the artifact above first…</option>';
+    parsedArtifact = null;
+    return;
+  }
+  try {
+    parsedArtifact = ednParse(text);
+  } catch (e) {
+    assetSelect.innerHTML = `<option value="">EDN parse error: ${e.message}</option>`;
+    parsedArtifact = null;
+    return;
+  }
+  const assets = parsedArtifact.assets || [];
+  if (!assets.length) {
+    assetSelect.innerHTML = '<option value="">No :assets found in this artifact</option>';
+    return;
+  }
+  assets.forEach((a, idx) => {
+    const opt = document.createElement("option");
+    opt.value = idx;
+    opt.textContent = ednName(a.asset);
+    assetSelect.appendChild(opt);
+  });
+  populateAccounts();
+  assetSelect.onchange = populateAccounts;
+}
+
+function populateAccounts() {
+  accountSelect.innerHTML = "";
+  const asset = parsedArtifact.assets[Number(assetSelect.value)];
+  if (!asset) return;
+  const proofs = asset["inclusion-proofs"] || {};
+  Object.keys(proofs).forEach((acct) => {
+    const opt = document.createElement("option");
+    opt.value = acct;
+    opt.textContent = `${acct}  (claimed amount: ${proofs[acct].amount})`;
+    accountSelect.appendChild(opt);
+  });
+}
+
+verifyBtn.addEventListener("click", async () => {
+  clearResult();
+  if (!parsedArtifact) {
+    resultDiv.className = "fail";
+    resultDiv.textContent = "Load or paste a valid EDN artifact first.";
+    return;
+  }
+  const asset = parsedArtifact.assets[Number(assetSelect.value)];
+  const accountKey = accountSelect.value;
+  if (!asset || !accountKey) {
+    resultDiv.className = "fail";
+    resultDiv.textContent = "Choose an asset and an account first.";
+    return;
+  }
+  const entry = asset["inclusion-proofs"][accountKey];
+  const root = asset["liability-root"];
+  const { ok, steps, reason } = await verifyInclusion(
+    accountKey, ednName(asset.asset), entry.amount, entry.proof, root
+  );
+  resultDiv.className = ok ? "pass" : "fail";
+  resultDiv.textContent = ok
+    ? `✓ PASS — your balance of ${entry.amount} (${ednName(asset.asset)}) for "${accountKey}" is included in the published liability root.`
+    : `✗ FAIL — ${reason}. This artifact does NOT account for your balance as claimed — escalate publicly.`;
+  stepsDiv.style.display = "block";
+  stepsDiv.textContent = steps.join("\n");
+});
+</script>
+
+</body>
+</html>

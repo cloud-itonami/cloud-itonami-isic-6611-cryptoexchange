@@ -87,6 +87,18 @@ printf 'node|5d89ef379d3d26b491464b4fc915a3e11da6a72f20aaaf2b4b9e531d94438d64|30
 (`sha256sum` on Linux; `shasum -a 256` on macOS. Both were used to
 reproduce these exact digests independently of the project code.)
 
+## A browser page, if you'd rather not use the command line
+
+[`verify.html`](verify.html) walks the exact same algorithm above,
+entirely in your browser — its own minimal EDN reader plus the Web
+Crypto API's `SHA-256` (no external libraries, no network request, no
+code shared with the rest of this project). Open it as a local file
+(no server needed), paste or load the published `attestation-<date>.edn`,
+choose your asset and account, and it shows every intermediate hash
+alongside the final PASS/FAIL against the published root — the same
+transparency as doing it by hand with `sha256sum`, just without typing
+the commands yourself.
+
 ## What this does and does not prove
 
 - **Proves**: your balance is included in the published liability total,
