@@ -1,0 +1,52 @@
+{:itonami.blueprint/id "cloud-itonami-isic-6611-cryptoexchange"
+ :itonami.blueprint/name "Incident-Proof Crypto-Asset Exchange (full-reserve, spot-only)"
+ :itonami.blueprint/isic-rev5 "6611"
+ :itonami.blueprint/role "cryptoexchange"
+ :itonami.blueprint/domain :finance/crypto-exchange
+ :itonami.blueprint/license "AGPL-3.0-or-later"
+ :itonami.blueprint/social-impact [:consumer-protection :transparency :financial-inclusion]
+ :itonami.blueprint/governor :cryptoexchange-governor
+ :itonami.blueprint/robotics false
+ :itonami.blueprint/required-technologies [:identity :forms :dmn :bpmn :audit-ledger :securities]
+ :itonami.blueprint/optional-technologies [:optimization]
+ :itonami.blueprint/status :public-oss
+ :itonami.blueprint/maturity :blueprint
+ :itonami.blueprint/design-adr "ADR-2607141200"
+ ;; Incident-class-driven invariants (full traceability table in the design
+ ;; ADR). HARD = enforced by an integer-coded fail-closed safety kernel or by
+ ;; construction; human approval cannot override a HARD violation
+ ;; (ADR-2607011000-shaped governor contract).
+ :itonami.blueprint/invariants
+ [{:inv 1 :hard true :name :full-reserve-solvency
+   :rule "per-asset attested reserves >= customer liabilities; breach auto-halts intake/trading (withdrawals continue)"}
+  {:inv 2 :hard true :name :no-rehypothecation
+   :rule "customer assets are never lent, invested, pledged or transferred to affiliates"}
+  {:inv 3 :hard true :name :self-token-excluded
+   :rule "self-issued tokens count neither as reserves nor as collateral"}
+  {:inv 4 :hard true :name :zero-privilege
+   :rule "no account tier bypasses risk checks; no proprietary trading"}
+  {:inv 5 :hard true :name :append-only-balances
+   :rule "balances are pure folds of an append-only event log; no mutation API exists; corrections are dual-control effects on the public ledger"}
+  {:inv 6 :hard true :name :conservation
+   :rule "sum(balances) == sum(deposits) - sum(withdrawals) - sum(fees) per asset, continuously verified"}
+  {:inv 7 :hard true :name :por-plus-pol
+   :rule "daily proof of reserves AND liabilities: Merkle-sum liability tree with user inclusion proofs + on-chain reserve attestation; reserves-only PoR is non-conforming"}
+  {:inv 8 :hard true :name :distributed-custody
+   :rule "cold storage >= 95%, M-of-N quorum across independent operators/devices; no single human can move funds"}
+  {:inv 9 :hard true :name :withdrawal-guards
+   :rule "destination allowlist, time-lock on large withdrawals, absolute velocity caps per window, hot-balance cap"}
+  {:inv 10 :hard true :name :wysiwys-signing
+   :rule "signing payloads are independently reconstructed and byte-compared on two verifier paths before signing; wallet UIs are never trusted"}
+  {:inv 11 :hard true :name :deterministic-matching
+   :rule "single-sequencer price-time priority, totally-ordered public audit log, third-party wash-trade detection possible"}
+  {:inv 12 :hard true :name :jurisdiction-gate
+   :rule "jurisdictions without a citable spec-basis are refused honestly (422); KYC / travel-rule / sanctions screening at intake"}
+  {:inv 13 :hard true :name :spot-only-scope-fence
+   :rule "margin, derivatives, lending and staking-yield products do not exist in this blueprint; introduction requires a separate ADR + satellite + governor"}
+  {:inv 14 :hard true :name :real-funds-gate
+   :rule "operating with real funds / real customers is out of scope until jurisdiction licensing (e.g. JP PSA crypto-asset exchange registration) plus an explicit owner decision"}]
+ :itonami.blueprint/safety-kernels
+ [:cryptoexchange.kernels/solvency
+  :cryptoexchange.kernels/custody
+  :cryptoexchange.kernels/conservation
+  :cryptoexchange.kernels/conflict]}
