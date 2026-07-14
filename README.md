@@ -58,8 +58,14 @@ publishes the business blueprint plus:
   is **independently verifiable in any language** — the exact algorithm
   is [docs/verify-inclusion.md](docs/verify-inclusion.md), whose worked
   example reproduces the root with plain `sha256sum`, no project code.
-  Still design/testnet-only: no real funds, keys, or chain broadcast
-  (INV-14).
+  A third way to verify (beyond `sha256sum` by hand or your own script)
+  is [docs/verify.html](docs/verify.html): a self-contained browser page
+  — paste or load a published `attestation-<date>.edn`, pick your
+  account, and it recomputes your inclusion proof against the published
+  root entirely client-side (its own minimal EDN reader + the browser's
+  own Web Crypto SHA-256, no network request, no code shared with this
+  project — open it directly as a local file, no server needed). Still
+  design/testnet-only: no real funds, keys, or chain broadcast (INV-14).
 
 The suite is portable `.cljc`; the **primary gate is ClojureScript**
 (`clojure -Sdeps '{:paths ["src" "test"]}' -M:cljs -m cljs.main
