@@ -17,6 +17,7 @@
       -M:cljs -m cljs.main --target node \\
       -m cryptoexchange.portable-cljs-test-runner"
   (:require [clojure.test :as t :refer [run-tests]]
+            [cryptoexchange.advisor-test]
             [cryptoexchange.attest-test]
             [cryptoexchange.censor-test]
             [cryptoexchange.governor-facade-test]
@@ -37,7 +38,8 @@
        (set! (.-exitCode js/process) 1))))
 
 (defn -main []
-  (run-tests 'cryptoexchange.kernels.solvency-test
+  (run-tests 'cryptoexchange.advisor-test
+             'cryptoexchange.kernels.solvency-test
              'cryptoexchange.kernels.custody-test
              'cryptoexchange.kernels.conservation-test
              'cryptoexchange.kernels.conflict-test
