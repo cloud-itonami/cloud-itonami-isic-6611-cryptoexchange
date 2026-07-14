@@ -84,6 +84,98 @@
                 (we/verify raw {:to (str/lower-case expected-addr)
                                 :value-wei 1000000000000000000})))))))
 
+;; --------------------- Gnosis Safe execTransaction -------------------
+
+(defn- pad32-left [ints] (into (vec (repeat (- 32 (count ints)) 0)) ints))
+(defn- uint256 [n] (pad32-left (minimal-be n)))
+(defn- addr-word [addr20] (pad32-left (vec addr20)))
+
+(def ^:private exec-sel [0x6a 0x76 0x12 0x02])
+(def ^:private transfer-sel [0xa9 0x05 0x9c 0xbb])
+(def ^:private recipient20 (vec (range 21 41)))       ; 0x15..28
+(def ^:private token20 (vec (range 41 61)))
+(defn- eip55 [ints] (eth/eip55-checksum (apply str (map #(format "%02x" %) ints))))
+
+(defn- safe-exec-native [to20 value]
+  (vec (concat exec-sel (addr-word to20) (uint256 value) (uint256 320) (uint256 0)
+               (uint256 0) (uint256 0) (uint256 0)
+               (addr-word (repeat 20 0)) (addr-word (repeat 20 0))
+               (uint256 352) (uint256 0) (uint256 0))))   ; data-len 0, sig-len 0
+
+(defn- safe-exec-token [token20 recip20 amount]
+  (let [inner (vec (concat transfer-sel (addr-word recip20) (uint256 amount)))]  ; 68 bytes
+    (vec (concat exec-sel (addr-word token20) (uint256 0) (uint256 320) (uint256 0)
+                 (uint256 0) (uint256 0) (uint256 0)
+                 (addr-word (repeat 20 0)) (addr-word (repeat 20 0))
+                 (uint256 999) (uint256 (count inner)) inner))))
+
+(defn- safe-exec-delegatecall [to20 value]
+  (vec (concat exec-sel (addr-word to20) (uint256 value) (uint256 320) (uint256 1)  ; operation 1
+               (uint256 0) (uint256 0) (uint256 0)
+               (addr-word (repeat 20 0)) (addr-word (repeat 20 0))
+               (uint256 352) (uint256 0) (uint256 0))))
+
+(defn- legacy-tx-with-data [to-ints value-wei data-ints]
+  (->ints (eth/rlp-encode [(ba (minimal-be 0)) (ba (minimal-be 20000000000))
+                           (ba (minimal-be 100000)) (ba to-ints) (ba (minimal-be value-wei))
+                           (ba data-ints)                        ; DATA = the execTransaction calldata
+                           (ba (minimal-be 1)) (ba []) (ba [])])))
+
+(def ^:private safe20 (vec (range 61 81)))              ; the Safe contract address
+
+(deftest safe-native-withdrawal-recovers-the-real-recipient
+  (let [raw (legacy-tx-with-data safe20 0 (safe-exec-native recipient20 1000000000000000000))
+        r (we/decode-safe raw)]
+    (is (true? (:ok? r)))
+    (is (= :native (:kind r)))
+    (is (= (eip55 recipient20) (:to r)))
+    (is (= 1000000000000000000 (:value-wei r)))
+    (testing "verify-safe: matching native intent -> flag 1"
+      (is (= 1 (:verifier-match-flag
+                (we/verify-safe raw {:kind :native :to (eip55 recipient20)
+                                     :value-wei 1000000000000000000})))))
+    (testing "Bybit: the outer tx pays the Safe, but the REAL recipient differs
+              from intent -> flag 0 -> kernel code 6"
+      (let [attacker (eip55 (vec (range 91 111)))
+            v (we/verify-safe raw {:kind :native :to attacker :value-wei 1000000000000000000})]
+        (is (= 0 (:verifier-match-flag v)))
+        (is (= 6 (custody/withdrawal-verdict 100 3 3 1 1 (:verifier-match-flag v)
+                                             250000 0 1000000)))))))
+
+(deftest safe-erc20-withdrawal-recovers-token-recipient-amount
+  (let [raw (legacy-tx-with-data safe20 0 (safe-exec-token token20 recipient20 250000))
+        r (we/decode-safe raw)]
+    (is (= :token (:kind r)))
+    (is (= (eip55 token20) (:token r)))
+    (is (= (eip55 recipient20) (:to r)))
+    (is (= 250000 (:amount r)))
+    (testing "matching token intent -> flag 1; tampered amount / recipient -> flag 0"
+      (is (= 1 (:verifier-match-flag
+                (we/verify-safe raw {:kind :token :token (eip55 token20)
+                                     :to (eip55 recipient20) :amount 250000}))))
+      (is (= 0 (:verifier-match-flag
+                (we/verify-safe raw {:kind :token :token (eip55 token20)
+                                     :to (eip55 recipient20) :amount 999}))))
+      (is (= 0 (:verifier-match-flag
+                (we/verify-safe raw {:kind :token :token (eip55 token20)
+                                     :to (eip55 (vec (range 91 111))) :amount 250000})))))))
+
+(deftest safe-delegatecall-and-unknown-inner-fail-closed
+  (testing "operation 1 (DELEGATECALL) is refused"
+    (let [raw (legacy-tx-with-data safe20 0 (safe-exec-delegatecall recipient20 1))]
+      (is (= :delegatecall (:reason (we/decode-safe raw))))
+      (is (= 0 (:verifier-match-flag (we/verify-safe raw {:kind :native :to (eip55 recipient20) :value-wei 1}))))))
+  (testing "a non-Safe tx (data not an execTransaction) is :not-safe-exec"
+    (let [raw (legacy-tx-with-data safe20 0 [0xde 0xad 0xbe 0xef])]
+      (is (= :not-safe-exec (:reason (we/decode-safe raw)))))))
+
+(deftest safe-kind-mismatch-fails-closed
+  (testing "a native decode against a token intent (or vice versa) fails closed"
+    (let [raw (legacy-tx-with-data safe20 0 (safe-exec-native recipient20 5))]
+      (is (= 0 (:verifier-match-flag
+                (we/verify-safe raw {:kind :token :token (eip55 token20)
+                                     :to (eip55 recipient20) :amount 5})))))))
+
 (deftest contract-creation-and-malformed-fail-closed
   (testing "an empty `to` (contract creation) has no destination to confirm → flag 0"
     (let [raw (legacy-tx [] 0)

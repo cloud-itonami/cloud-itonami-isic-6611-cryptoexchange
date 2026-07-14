@@ -90,9 +90,14 @@ procedure; nothing else may set it:
    > `cryptoexchange.wysiwys-eth` parses a raw unsigned ETH tx
    > (legacy / EIP-2930 / EIP-1559) back to its `(to, value)`, adding
    > the RLP DECODE direction on top of `kotoba-lang/eth-crypto`'s
-   > rlp-encode + EIP-55; a Safe-multisig `execTransaction` SafeTx
-   > struct-hash path (the real destination inside calldata) is the
-   > remaining follow-up and fails closed until then. The
+   > rlp-encode + EIP-55. **Safe (2026-07-14)**: `wysiwys-eth/decode-safe`
+   > ABI-decodes a Gnosis Safe `execTransaction` calldata (selector
+   > `0x6a761202`, verified against eth-crypto's keccak256) to recover
+   > the REAL inner destination — native `(to,value)` or a nested
+   > ERC-20 `transfer(address,uint256)` (`0xa9059cbb`) `(token,to,
+   > amount)`; DELEGATECALL (operation 1) and any unrecognized inner
+   > call fail closed. So a Safe signer confirms the true recipient,
+   > not the Safe contract address. The
    > two-independent-toolchain requirement above is the
    > production goal; the shipped decoder is one real verifier plus the
    > portable `cryptoexchange.wysiwys` stand-in for the byte-compare

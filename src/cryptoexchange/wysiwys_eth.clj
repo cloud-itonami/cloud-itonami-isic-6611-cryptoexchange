@@ -68,9 +68,9 @@
 ;; Field layout per type; nil `type` = legacy (starts directly with the
 ;; RLP list, first byte >= 0xc0).
 (def ^:private layout
-  {:legacy {:to 3 :value 4}   ; [nonce gasPrice gas TO VALUE data v r s]
-   0x01    {:to 4 :value 5}   ; EIP-2930 [chainId nonce gasPrice gas TO VALUE data accessList]
-   0x02    {:to 5 :value 6}}) ; EIP-1559 [chainId nonce maxPrio maxFee gas TO VALUE data accessList]
+  {:legacy {:to 3 :value 4 :data 5}   ; [nonce gasPrice gas TO VALUE DATA v r s]
+   0x01    {:to 4 :value 5 :data 6}   ; EIP-2930 [chainId nonce gasPrice gas TO VALUE DATA accessList]
+   0x02    {:to 5 :value 6 :data 7}}) ; EIP-1559 [chainId nonce maxPrio maxFee gas TO VALUE DATA accessList]
 
 (defn decode-transfer
   "Parse a raw unsigned ETH tx (int vector) → {:ok? true :to <0x addr>
@@ -110,3 +110,105 @@
       {:verifier-match-flag 1 :reason :match :to (:to r) :value-wei (:value-wei r)}
       :else
       {:verifier-match-flag 0 :reason :intent-mismatch :to (:to r) :value-wei (:value-wei r)})))
+
+;; --------------------- Gnosis Safe execTransaction -------------------
+;; A withdrawal from a Safe multisig (custody ADR §1, ETH cold) is NOT a
+;; direct transfer: the outer tx's `to` is the Safe contract and its
+;; DATA carries an ABI-encoded execTransaction(...) whose inner `to` /
+;; `value` (or, for an ERC-20, a nested transfer(address,uint256)) is
+;; the REAL destination. Recovering that from the calldata is the WYSIWYS
+;; job for Safe — a signer must confirm the true recipient, not the Safe
+;; address. Selectors verified against eth-crypto's keccak256:
+;;   execTransaction(...) = 0x6a761202   transfer(address,uint256) = 0xa9059cbb
+(def ^:private exec-selector [0x6a 0x76 0x12 0x02])
+(def ^:private transfer-selector [0xa9 0x05 0x9c 0xbb])
+
+(defn- selector? [calldata sel]
+  (and (>= (count calldata) 4) (= (subvec (vec calldata) 0 4) sel)))
+
+(defn- word
+  "The i-th 32-byte ABI word (0-based) after the 4-byte selector, as an
+  int vector."
+  [calldata i]
+  (let [s (+ 4 (* i 32))]
+    (subvec (vec calldata) s (+ s 32))))
+
+(defn- word-uint [calldata i] (big-endian (word calldata i)))
+
+(defn- word-addr
+  "ABI address word -> EIP-55 0x address (last 20 bytes of the word)."
+  [calldata i]
+  (let [w (word calldata i)]
+    (eth/eip55-checksum (apply str (map #(format "%02x" %) (subvec w 12 32))))))
+
+(defn- dyn-bytes
+  "Dynamic `bytes` at ABI `byte-offset` (relative to the arg block, i.e.
+  after the selector): a 32-byte length then that many bytes."
+  [calldata byte-offset]
+  (let [len-at (+ 4 byte-offset)
+        len (big-endian (subvec (vec calldata) len-at (+ len-at 32)))
+        start (+ len-at 32)]
+    (subvec (vec calldata) start (+ start len))))
+
+(defn decode-safe-exec
+  "Decode a Safe `execTransaction` calldata (int vector) to the REAL
+  intent. Returns {:ok? true :kind :native :to <0x> :value-wei n} for a
+  native ETH move, {:ok? true :kind :token :token <0x> :to <0x> :amount
+  n} for a nested ERC-20 transfer, or {:ok? false :reason kw}. Only
+  operation 0 (CALL) is accepted; a DELEGATECALL or any unrecognized
+  inner call fails closed (you don't sign what you can't reduce to a
+  destination)."
+  [calldata]
+  (if-not (selector? calldata exec-selector)
+    {:ok? false :reason :not-safe-exec}
+    (let [to (word-addr calldata 0)
+          value (word-uint calldata 1)
+          data-off (word-uint calldata 2)
+          operation (word-uint calldata 3)
+          inner (dyn-bytes calldata data-off)]
+      (cond
+        (not= operation 0) {:ok? false :reason :delegatecall}
+        (empty? inner) {:ok? true :kind :native :to to :value-wei value}
+        (selector? inner transfer-selector)
+        {:ok? true :kind :token :token to
+         :to (word-addr inner 0) :amount (word-uint inner 1)}
+        :else {:ok? false :reason :unrecognized-inner-call}))))
+
+(defn decode-safe
+  "Parse a raw unsigned ETH tx whose DATA is a Safe execTransaction, and
+  recover the real inner intent (see `decode-safe-exec`)."
+  [raw]
+  (try
+    (let [b0 (nth raw 0)
+          [tx-type body-start] (if (>= b0 0xc0) [:legacy 0] [b0 1])
+          [item _] (rlp-item (vec raw) body-start)
+          fields (:list item)
+          {:keys [data]} (get layout tx-type)]
+      (if (or (nil? fields) (nil? data) (<= (count fields) data))
+        {:ok? false :reason :unrecognized-tx-shape}
+        (decode-safe-exec (vec (:str (nth fields data))))))
+    (catch Exception e
+      {:ok? false :reason :parse-error :ex (str e)})))
+
+(defn- addr= [a b]
+  (= (str/lower-case (str a)) (str/lower-case (str b))))
+
+(defn verify-safe
+  "WYSIWYS check for a Safe-multisig ETH withdrawal: decode the inner
+  execTransaction and confirm it matches `intent`. Native intent:
+  `{:kind :native :to <0x> :value-wei n}`. Token intent:
+  `{:kind :token :token <0x> :to <0x> :amount n}`. Any decode failure,
+  kind mismatch, or field mismatch fails closed -> flag 0."
+  [raw {:keys [kind] :as intent}]
+  (let [r (decode-safe raw)]
+    (cond
+      (not (:ok? r)) {:verifier-match-flag 0 :reason (:reason r)}
+      (not= (:kind r) kind) {:verifier-match-flag 0 :reason :kind-mismatch :decoded r}
+      (and (= kind :native)
+           (addr= (:to r) (:to intent)) (= (:value-wei r) (:value-wei intent)))
+      {:verifier-match-flag 1 :reason :match :decoded r}
+      (and (= kind :token)
+           (addr= (:token r) (:token intent)) (addr= (:to r) (:to intent))
+           (= (:amount r) (:amount intent)))
+      {:verifier-match-flag 1 :reason :match :decoded r}
+      :else {:verifier-match-flag 0 :reason :intent-mismatch :decoded r})))

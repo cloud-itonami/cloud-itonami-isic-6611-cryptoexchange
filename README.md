@@ -44,9 +44,13 @@ publishes the business blueprint plus:
   addresses+values, reusing `kotoba-lang/btc-crypto`'s bech32/base58)
   and `cryptoexchange.wysiwys-eth` (raw unsigned ETH tx — legacy /
   EIP-2930 / EIP-1559 → `to`/`value`, adding the RLP decode direction
-  on top of `kotoba-lang/eth-crypto`'s rlp-encode + EIP-55) — both
-  JVM-only at the actuation boundary; the Safe-multisig SafeTx path is
-  the remaining ETH follow-up, and `cryptoexchange.publish` +
+  on top of `kotoba-lang/eth-crypto`'s rlp-encode + EIP-55, incl. the
+  **Gnosis Safe `execTransaction` path** — ABI-decodes the calldata to
+  recover the real inner recipient/value for a native move or a nested
+  ERC-20 `transfer`, so a Safe signer confirms the true destination not
+  the Safe address; DELEGATECALL and unrecognized inner calls fail
+  closed) — both JVM-only at the actuation boundary, and
+  `cryptoexchange.publish` +
   `scripts/publish_attestation.cljs` (the daily PoR+PoL public
   artifact — canonical **EDN** with per-user inclusion proofs plus a
   Markdown summary; a reserves-only artifact is structurally
