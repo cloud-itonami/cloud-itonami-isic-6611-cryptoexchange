@@ -21,7 +21,8 @@
             [cryptoexchange.kernels.conflict-test]
             [cryptoexchange.kernels.conservation-test]
             [cryptoexchange.kernels.custody-test]
-            [cryptoexchange.kernels.solvency-test]))
+            [cryptoexchange.kernels.solvency-test]
+            [cryptoexchange.ledger-test]))
 
 #?(:cljs
    (defmethod t/report [:cljs.test/default :end-run-tests] [m]
@@ -33,4 +34,5 @@
              'cryptoexchange.kernels.custody-test
              'cryptoexchange.kernels.conservation-test
              'cryptoexchange.kernels.conflict-test
-             'cryptoexchange.governor-facade-test))
+             'cryptoexchange.governor-facade-test
+             'cryptoexchange.ledger-test))
