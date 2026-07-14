@@ -117,3 +117,49 @@
 (deftest malformed-bytes-fail-closed
   (is (= 0 (:verifier-match-flag (wb/verify [0x02 0x00] {:address "x" :value-sat 1} {}))))
   (is (false? (:ok? (wb/decode-outputs [0x02 0x00 0x00])))))
+
+(deftest truncation-never-throws
+  (testing "the decoder parses ATTACKER-controlled bytes — EVERY prefix of a
+            valid tx must return a map, never throw (a crash on malformed input
+            is itself a fail-open). The complete tx verifies. NOTE: a prefix
+            that cuts only trailing bytes (witness/locktime) still contains all
+            outputs, so it legitimately reports the same destination — that is
+            correct (truncating past the outputs cannot redirect funds), which
+            is why the property here is 'never throws', not 'never verifies'."
+    (let [addr (bech32/encode-segwit-address "bc" 0 prog20)
+          raw (tx-with-outputs [(output 250000 (p2wpkh-script prog20))
+                                (output 5 (p2wsh-script prog32))])]
+      (doseq [n (range 0 (count raw))]
+        (is (map? (wb/decode-outputs (subvec (vec raw) 0 n)))
+            (str "prefix len " n " must not throw")))
+      (is (= 1 (:verifier-match-flag (wb/verify raw {:address addr :value-sat 250000} {})))
+          "the complete tx verifies"))))
+
+(deftest truncation-within-an-output-fails-closed
+  (testing "cutting inside the value or scriptPubKey of the intended output
+            (so it is NOT fully present) must fail closed — never a partial
+            false-positive"
+    (let [addr (bech32/encode-segwit-address "bc" 0 prog20)
+          version [0x02 0x00 0x00 0x00]
+          input (vec (concat (repeat 32 0x00) [0x00 0x00 0x00 0x00] (varint 0) [0xff 0xff 0xff 0xff]))
+          ;; header through vout=1 and the value, then a scriptPubKey LENGTH of
+          ;; 0x16 (22, a p2wpkh script) but only a few bytes actually follow —
+          ;; the script is cut short, so the output is not fully present
+          head (vec (concat version (varint 1) input (varint 1) (le64 250000) [0x16 0x00 0x14 0x11 0x11]))]
+      (is (false? (:ok? (wb/decode-outputs head))))
+      (is (= 0 (:verifier-match-flag (wb/verify head {:address addr :value-sat 250000} {})))))))
+
+(deftest oversized-length-claims-fail-closed
+  (testing "a scriptPubKey length claiming more bytes than remain, and an
+            output count far exceeding the data, both fail closed (no throw,
+            no partial false-positive)"
+    ;; version + 1 dummy input + vout=1 + value(8) + script-len=0xfc (252) but
+    ;; only a few bytes follow
+    (let [version [0x02 0x00 0x00 0x00]
+          input (vec (concat (repeat 32 0x00) [0x00 0x00 0x00 0x00] (varint 0) [0xff 0xff 0xff 0xff]))
+          bad-script-len (vec (concat version (varint 1) input (varint 1) (le64 5) [0xfc 0x00 0x11]))
+          bad-vout-count (vec (concat version (varint 1) input [0xff] (le64 5)))]  ; 0xff varint header, truncated
+      (is (map? (wb/decode-outputs bad-script-len)))
+      (is (false? (:ok? (wb/decode-outputs bad-script-len))))
+      (is (map? (wb/decode-outputs bad-vout-count)))
+      (is (false? (:ok? (wb/decode-outputs bad-vout-count)))))))

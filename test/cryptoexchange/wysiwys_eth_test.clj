@@ -176,6 +176,35 @@
                 (we/verify-safe raw {:kind :token :token (eip55 token20)
                                      :to (eip55 recipient20) :amount 5})))))))
 
+(deftest truncation-never-throws
+  (testing "every prefix of a valid ETH tx (legacy / 1559 / Safe) returns a map
+            from BOTH decoders (never throws — a crash on attacker bytes is a
+            fail-open); the complete txs verify"
+    (let [legacy (legacy-tx to20 1000000000000000000)
+          typed (eip1559-tx to20 250000)
+          safe (legacy-tx-with-data safe20 0 (safe-exec-native recipient20 5))]
+      (doseq [raw [legacy typed safe]]
+        (doseq [n (range 0 (count raw))]
+          (let [pre (subvec (vec raw) 0 n)]
+            (is (map? (we/decode-transfer pre)) (str "decode-transfer prefix " n " must not throw"))
+            (is (map? (we/decode-safe pre)) (str "decode-safe prefix " n " must not throw")))))
+      (is (= 1 (:verifier-match-flag (we/verify legacy {:to expected-addr :value-wei 1000000000000000000})))
+          "the complete legacy tx verifies")
+      (is (= 1 (:verifier-match-flag (we/verify-safe safe {:kind :native :to (eip55 recipient20) :value-wei 5})))
+          "the complete Safe tx verifies"))))
+
+(deftest safe-oversized-data-offset-fails-closed
+  (testing "an execTransaction whose data offset points past the calldata fails
+            closed (no throw)"
+    (let [bad (vec (concat exec-sel (addr-word recipient20) (uint256 5)
+                           (uint256 99999)   ; data offset way past the end
+                           (uint256 0) (uint256 0) (uint256 0) (uint256 0)
+                           (addr-word (repeat 20 0)) (addr-word (repeat 20 0)) (uint256 0)))
+          raw (legacy-tx-with-data safe20 0 bad)
+          r (we/decode-safe raw)]
+      (is (map? r))
+      (is (false? (:ok? r))))))
+
 (deftest contract-creation-and-malformed-fail-closed
   (testing "an empty `to` (contract creation) has no destination to confirm → flag 0"
     (let [raw (legacy-tx [] 0)
