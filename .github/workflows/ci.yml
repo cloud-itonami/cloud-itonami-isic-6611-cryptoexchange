@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# This actor's deps.edn uses in-monorepo :local/root paths
+# (../../<org>/<repo>) for its sibling libs, which don't exist on a bare
+# clone. Rather than duplicate a git-coordinate list that would drift, CI
+# reconstructs the monorepo-relative layout by checking out each sibling
+# (all PUBLIC) at its <org>/<repo> path, so the exact same `clojure
+# -M:dev:test` that developers run locally resolves here too. Sibling
+# repos are tested at their default branch — CI catches integration
+# breaks against current siblings.
+jobs:
+  test:
+    name: JVM + CLJS + lint (monorepo layout)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout this actor
+        uses: actions/checkout@v4
+        with:
+          path: cloud-itonami/cloud-itonami-isic-6611-cryptoexchange
+
+      - name: Checkout langgraph-clj
+        uses: actions/checkout@v4
+        with: { repository: com-junkawasaki/langgraph-clj, path: com-junkawasaki/langgraph-clj }
+      - name: Checkout langchain-clj
+        uses: actions/checkout@v4
+        with: { repository: com-junkawasaki/langchain-clj, path: com-junkawasaki/langchain-clj }
+      - name: Checkout langchain
+        uses: actions/checkout@v4
+        with: { repository: kotoba-lang/langchain, path: kotoba-lang/langchain }
+      - name: Checkout merkle-sum
+        uses: actions/checkout@v4
+        with: { repository: kotoba-lang/merkle-sum, path: kotoba-lang/merkle-sum }
+      - name: Checkout langchain-store
+        uses: actions/checkout@v4
+        with: { repository: kotoba-lang/langchain-store, path: kotoba-lang/langchain-store }
+      - name: Checkout btc-crypto
+        uses: actions/checkout@v4
+        with: { repository: kotoba-lang/btc-crypto, path: kotoba-lang/btc-crypto }
+      - name: Checkout eth-crypto
+        uses: actions/checkout@v4
+        with: { repository: kotoba-lang/eth-crypto, path: kotoba-lang/eth-crypto }
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: DeLaGuardo/setup-clojure@13.4
+        with:
+          cli: latest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Cache m2 / gitlibs
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2
+            ~/.gitlibs
+          key: ${{ runner.os }}-clj-${{ hashFiles('cloud-itonami/cloud-itonami-isic-6611-cryptoexchange/deps.edn') }}
+          restore-keys: ${{ runner.os }}-clj-
+
+      # JVM compat gate — includes the langgraph actor graph and the
+      # JVM-only BTC/ETH WYSIWYS decoders (btc-crypto / eth-crypto).
+      - name: JVM tests
+        working-directory: cloud-itonami/cloud-itonami-isic-6611-cryptoexchange
+        run: clojure -M:dev:test
+
+      # CLJS primary gate — the portable .cljc suite under a real
+      # ClojureScript host (never pulls in the JVM-only crypto libs).
+      - name: CLJS tests
+        working-directory: cloud-itonami/cloud-itonami-isic-6611-cryptoexchange
+        run: clojure -Sdeps '{:paths ["src" "test"]}' -M:dev:cljs -m cljs.main --target node -m cryptoexchange.portable-cljs-test-runner
+
+      - name: Lint (clj-kondo, errors fail)
+        working-directory: cloud-itonami/cloud-itonami-isic-6611-cryptoexchange
+        run: clojure -M:lint
