@@ -129,3 +129,52 @@
       (is (= 300 (ledger/balance settled :bob :jpy)))
       (doseq [asset [:btc :jpy]]
         (is (true? (:conserved? (ledger/conservation-check settled asset))))))))
+
+(deftest large-taker-sweeps-makers-across-levels-and-settles-conserved
+  (testing "a big taker eats several resting makers across two price levels
+            (each at the maker's price, time-priority within a level), rests
+            its remainder, and every fill settled on a funded ledger conserves"
+    (let [{:keys [book fills]} (submit-all
+                               [(ask 1 :a1 :m1 100 5)
+                                (ask 2 :a2 :m2 101 5)
+                                (ask 3 :a3 :m3 100 3)     ; same price as a1, later -> after a1
+                                (bid 4 :b1 :taker 101 20)])]  ; wants 20, only 13 <= 101
+      (testing "fill order: 100(m1, older) -> 100(m3) -> 101(m2); 13 base filled"
+        (is (= [:a1 :a3 :a2] (mapv :maker-id fills)))
+        (is (= [100 100 101] (mapv :price-minor fills)))
+        (is (= [5 3 5] (mapv :qty-minor fills)))
+        (is (= 13 (reduce + 0 (map :qty-minor fills)))))
+      (testing "the taker's unfilled remainder rests"
+        (is (= [{:id :b1 :qty-minor 7}]
+               (mapv #(select-keys % [:id :qty-minor]) (:bids book))))
+        (is (empty? (:asks book)) "all asks consumed"))
+      (testing "settling every fill on a funded ledger conserves both assets"
+        (let [market {:base :btc :quote :jpy}
+              ;; quote needed by the taker: 5*100 + 3*100 + 5*101 = 1305
+              funded (reduce (fn [l e] (:ledger (ledger/append l e)))
+                             ledger/empty-ledger
+                             [{:kind :deposit :seq 1 :account :m1 :asset :btc :amount-minor 5}
+                              {:kind :deposit :seq 2 :account :m2 :asset :btc :amount-minor 5}
+                              {:kind :deposit :seq 3 :account :m3 :asset :btc :amount-minor 3}
+                              {:kind :deposit :seq 4 :account :taker :asset :jpy :amount-minor 1305}])
+              settled (reduce (fn [l [i fill]]
+                                (let [r (ledger/append l (matching/fill->trade-event fill market (+ 5 i)))]
+                                  (is (:ok? r) (str "settlement rejected: " (:reason r)))
+                                  (:ledger r)))
+                              funded (map-indexed vector fills))]
+          (is (= 13 (ledger/balance settled :taker :btc)) "taker received all 13 base")
+          (is (= 500 (ledger/balance settled :m1 :jpy)))
+          (is (= 300 (ledger/balance settled :m3 :jpy)))
+          (is (= 505 (ledger/balance settled :m2 :jpy)))
+          (doseq [asset [:btc :jpy]]
+            (is (true? (:conserved? (ledger/conservation-check settled asset))))))))))
+
+(deftest cancel-a-partially-filled-resting-order
+  (testing "a resting order that took a partial fill can still be cancelled,
+            and its remaining quantity leaves the book"
+    (let [{:keys [book]} (submit-all
+                          [(bid 1 :b1 :alice 100 10)
+                           (ask 2 :a1 :bob 100 4)          ; partially fills b1: 4 of 10
+                           {:kind :cancel :seq 3 :id :b1 :account :alice}])]
+      (is (empty? (:bids book)) "the partially-filled b1 is gone after cancel")
+      (is (empty? (:asks book))))))

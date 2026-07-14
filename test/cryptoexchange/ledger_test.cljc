@@ -126,3 +126,32 @@
           honest (ledger/conservation-sums l :btc)
           cooked (update honest :sum-balances-minor + 500)]
       (is (= :broken (:reason (governor/conservation-check cooked)))))))
+
+(deftest conservation-holds-step-by-step-across-a-mixed-multi-asset-log
+  (testing "a long mix of deposits / trades / fees / withdrawals / dual-control
+            adjustments across THREE accounts and TWO assets must conserve BOTH
+            assets after EVERY single event (the invariant is not just an
+            end-state property)"
+    (let [events [{:kind :deposit :seq 1 :account :a :asset :btc :amount-minor 1000}
+                  {:kind :deposit :seq 2 :account :b :asset :jpy :amount-minor 500000}
+                  {:kind :trade :seq 3 :buyer :b :seller :a :base :btc :quote :jpy
+                   :base-amount-minor 400 :quote-amount-minor 200000}
+                  {:kind :fee :seq 4 :account :b :asset :btc :amount-minor 4}
+                  {:kind :withdrawal :seq 5 :account :a :asset :jpy :amount-minor 150000}
+                  {:kind :adjustment :seq 6 :account :a :asset :btc :delta-minor -10
+                   :approvers [:o1 :o2] :evidence "reorg refund"}
+                  {:kind :deposit :seq 7 :account :c :asset :btc :amount-minor 50}
+                  {:kind :fee :seq 8 :account :c :asset :btc :amount-minor 5}
+                  ;; c (holds 45 btc after the fee) sells 40 btc to b (holds
+                  ;; 300000 jpy after seq 3); both legs are covered.
+                  {:kind :trade :seq 9 :buyer :b :seller :c :base :btc :quote :jpy
+                   :base-amount-minor 40 :quote-amount-minor 30000}]]
+      (loop [l ledger/empty-ledger es events]
+        (when (seq es)
+          (let [e (first es)
+                r (ledger/append l e)]
+            (is (:ok? r) (str "event must append: " (:reason r) " at " e))
+            (doseq [asset [:btc :jpy]]
+              (is (true? (:conserved? (ledger/conservation-check (:ledger r) asset)))
+                  (str "conservation on " asset " after seq " (:seq e))))
+            (recur (:ledger r) (rest es))))))))
