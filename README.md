@@ -5,14 +5,26 @@ exchange** — a role-suffix satellite of ISIC 6611 (administration of
 financial markets), designed in ADR-2607141200 of the superproject
 ledger.
 
-**Maturity: `:blueprint` (M1 kernels landed)** — this repository
-publishes the business blueprint plus the four **safety kernels** of
-the design (M1 of ADR-2607141200): `cryptoexchange.kernels.solvency`
-/ `custody` / `conservation` / `conflict`, integer-coded and
-fail-closed in the safe-kotoba subset (ADR-2607121200 discipline,
-battery + case-count locks, independent-oracle parity matrices), with
-the `cryptoexchange.governor` keyword façade. The suite is portable
-`.cljc`; the **primary gate is ClojureScript**
+**Maturity: `:blueprint` (M1 + M2 landed)** — this repository
+publishes the business blueprint plus:
+
+- **M1 — safety kernels**: `cryptoexchange.kernels.solvency` /
+  `custody` / `conservation` / `conflict`, integer-coded and
+  fail-closed in the safe-kotoba subset (ADR-2607121200 discipline,
+  battery + case-count locks, independent-oracle parity matrices),
+  with the `cryptoexchange.governor` keyword façade.
+- **M2 — exchange core**: `cryptoexchange.ledger` (append-only
+  event-sourced ledger, balances as pure folds, no mutation API, no
+  negative balances by construction, dual-control adjustments),
+  `cryptoexchange.matching` (deterministic price-time matching, maker
+  price rule, reject-taker self-trade prevention, third-party replay),
+  `cryptoexchange.attest` (Merkle-sum PoR+PoL with user inclusion
+  proofs, judged by the solvency kernel, cross-runtime pinned root),
+  and `cryptoexchange.store` (MemStore ≡ DatomicStore contract over
+  `langchain.db` — the kotoba-datomic seam; every append validates
+  through the domain folds first).
+
+The suite is portable `.cljc`; the **primary gate is ClojureScript**
 (`clojure -Sdeps '{:paths ["src" "test"]}' -M:cljs -m cljs.main
 --target node -m cryptoexchange.portable-cljs-test-runner`), JVM
 (`clojure -M:test`) is the compat gate. There is **no actor

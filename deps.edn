@@ -1,8 +1,15 @@
 {:paths ["src"]
- ;; Kernels + façade only (M1 of ADR-2607141200) — zero runtime deps,
- ;; all portable .cljc. The langgraph actor (M2+) will add
+ ;; langchain-clj provides langchain.db, the Datomic-API-compatible EAV
+ ;; store behind cryptoexchange.store's DatomicStore (M2d) — the
+ ;; kotoba-datomic seam. It lives in the com-junkawasaki org of this
+ ;; workspace. This repo is standalone (forkable outside the
+ ;; workspace); the :local/root path only resolves inside the monorepo
+ ;; checkout — a standalone fork should override it with git
+ ;; coordinates. The langgraph actor (M3+) will add
  ;; io.github.com-junkawasaki/langgraph-clj the same way the sibling
  ;; wave-0 finance actors (e.g. cloud-itonami-isic-6511) do.
+ :deps {io.github.com-junkawasaki/langchain-clj
+        {:local/root "../../com-junkawasaki/langchain-clj"}}
  :aliases
  {:test {:extra-paths ["test"]
          :extra-deps {io.github.cognitect-labs/test-runner
