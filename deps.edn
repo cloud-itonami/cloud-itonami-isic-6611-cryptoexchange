@@ -7,7 +7,7 @@
  ;; resolve inside the monorepo checkout; a standalone fork should
  ;; override them with git coordinates.
  :deps {io.github.com-junkawasaki/langgraph-clj
-        {:local/root "../../com-junkawasaki/langgraph-clj"}
+        {:local/root "../../kotoba-lang/langgraph"}
         ;; merkle-sum: the shared Merkle-sum tree behind PoR/PoL
         ;; (cryptoexchange.attest), extracted to kotoba-lang so any actor
         ;; needing proof-of-reserves reuses one audited implementation.
@@ -35,7 +35,7 @@
  {;; offline workspace dev — pin transitive langchain to the local checkout.
   :dev {:override-deps
         {io.github.kotoba-lang/langchain
-         {:local/root "../../com-junkawasaki/langchain-clj"}}}
+         {:local/root "../../kotoba-lang/langchain"}}}
   :test {:extra-paths ["test"]
          :extra-deps {io.github.cognitect-labs/test-runner
                       {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
