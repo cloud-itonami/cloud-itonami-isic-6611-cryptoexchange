@@ -28,7 +28,7 @@ jobs:
 
       - name: Checkout langgraph-clj
         uses: actions/checkout@v4
-        with: { repository: com-junkawasaki/langgraph-clj, path: com-junkawasaki/langgraph-clj }
+        with: { repository: kotoba-lang/langgraph, path: kotoba-lang/langgraph }
       - name: Checkout langchain-clj
         uses: actions/checkout@v4
         with: { repository: com-junkawasaki/langchain-clj, path: com-junkawasaki/langchain-clj }
