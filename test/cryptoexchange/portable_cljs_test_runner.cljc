@@ -30,6 +30,7 @@
             [cryptoexchange.matching-test]
             [cryptoexchange.publish-test]
             [cryptoexchange.store-contract-test]
+            [cryptoexchange.actor-integration-test]
             [cryptoexchange.wysiwys-test]))
 
 #?(:cljs
@@ -51,4 +52,5 @@
              'cryptoexchange.censor-test
              'cryptoexchange.phase-test
              'cryptoexchange.wysiwys-test
-             'cryptoexchange.publish-test))
+             'cryptoexchange.publish-test
+             'cryptoexchange.actor-integration-test))
