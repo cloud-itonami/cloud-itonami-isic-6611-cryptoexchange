@@ -22,7 +22,7 @@
   THAT is a documented follow-up (the SafeTx struct-hash path); an
   unrecognized shape fails closed rather than reporting a wrong
   destination."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [eth-crypto.core :as eth]))
 
 ;; ------------------------------ RLP decode ---------------------------
@@ -104,8 +104,8 @@
   (let [r (decode-transfer raw)]
     (cond
       (not (:ok? r)) {:verifier-match-flag 0 :reason (:reason r)}
-      (and (= (clojure.string/lower-case (str (:to r)))
-              (clojure.string/lower-case (str to)))
+      (and (= (str/lower (str (:to r)))
+              (str/lower (str to)))
            (= (:value-wei r) value-wei))
       {:verifier-match-flag 1 :reason :match :to (:to r) :value-wei (:value-wei r)}
       :else
@@ -191,7 +191,7 @@
       {:ok? false :reason :parse-error :ex (str e)})))
 
 (defn- addr= [a b]
-  (= (str/lower-case (str a)) (str/lower-case (str b))))
+  (= (str/lower (str a)) (str/lower (str b))))
 
 (defn verify-safe
   "WYSIWYS check for a Safe-multisig ETH withdrawal: decode the inner

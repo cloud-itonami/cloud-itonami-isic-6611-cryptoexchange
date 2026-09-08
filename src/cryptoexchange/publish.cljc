@@ -18,7 +18,7 @@
   count (INV-3, fail-closed at the governor boundary). `as-of` is a
   caller-supplied timestamp string (kept out of this ns so the builder
   stays deterministic and unit-testable)."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [cryptoexchange.attest :as attest]))
 
 (defn build-artifact

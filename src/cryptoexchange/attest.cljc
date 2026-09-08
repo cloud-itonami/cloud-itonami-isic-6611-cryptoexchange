@@ -30,7 +30,7 @@
   (:require [cryptoexchange.governor :as governor]
             [cryptoexchange.ledger :as ledger]
             [merkle-sum.core :as merkle]
-            #?(:clj [clojure.string :as str])))
+            #?(:clj [kotoba.lang.text :as str])))
 
 ;; ------------------------------ hashing ------------------------------
 
