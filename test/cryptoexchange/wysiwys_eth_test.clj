@@ -5,7 +5,7 @@
   encode direction it must invert; destination addresses are checked
   against eth-crypto's `eip55-checksum`."
   (:require [clojure.test :refer [deftest is testing]]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [eth-crypto.core :as eth]
             [cryptoexchange.kernels.custody :as custody]
             [cryptoexchange.wysiwys-eth :as we]))
@@ -81,7 +81,7 @@
       (is (= 0 (:verifier-match-flag (we/verify raw {:to expected-addr :value-wei 999})))))
     (testing "checksum casing is display-only — a lowercase intent still matches"
       (is (= 1 (:verifier-match-flag
-                (we/verify raw {:to (str/lower-case expected-addr)
+                (we/verify raw {:to (str/lower expected-addr)
                                 :value-wei 1000000000000000000})))))))
 
 ;; --------------------- Gnosis Safe execTransaction -------------------
