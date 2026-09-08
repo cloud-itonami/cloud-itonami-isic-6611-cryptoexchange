@@ -19,7 +19,7 @@
 ;; folds the Merkle-sum liability tree in (INV-7).
 (ns publish-attestation
   (:require [cljs.reader :as reader]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             ["fs" :as fs]
             [cryptoexchange.ledger :as ledger]
             [cryptoexchange.publish :as publish]))
