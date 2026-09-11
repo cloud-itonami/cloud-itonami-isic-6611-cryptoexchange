@@ -51,7 +51,7 @@ publishes the business blueprint plus:
   the Safe address; DELEGATECALL and unrecognized inner calls fail
   closed) — both JVM-only at the actuation boundary, and
   `cryptoexchange.publish` +
-  `scripts/publish_attestation.cljs` (the daily PoR+PoL public
+  `scripts/publish_attestation.cljk` (the daily PoR+PoL public
   artifact — canonical **EDN** with per-user inclusion proofs plus a
   Markdown summary; a reserves-only artifact is structurally
   unbuildable). The leaf preimage uses colon-free names so the artifact

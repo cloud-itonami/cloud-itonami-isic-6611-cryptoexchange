@@ -9,7 +9,7 @@ reproduced with plain `sha256` (no project code at all).
 
 The exchange publishes, per day, `attestation-<as-of>.edn` (the single
 canonical format; see `cryptoexchange.publish` /
-`scripts/publish_attestation.cljs`). EDN reads natively in the fleet's
+`scripts/publish_attestation.cljk`). EDN reads natively in the fleet's
 own runtime stack (kotoba wasm > clojurewasm > ClojureScript > nbb); in
 any other language, an EDN parser or a couple of lines of parsing gets
 you the fields — the verification below is serialization-agnostic. You
