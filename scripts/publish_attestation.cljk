@@ -6,7 +6,7 @@
 ;; and reserve EDN, folds them, and writes the two public artifacts.
 ;;
 ;; Run (verified 2026-07-14 with nbb via npx):
-;;   nbb -cp src scripts/publish_attestation.cljk \
+;;   kbb --backend sci -cp src scripts/publish_attestation.cljk \
 ;;       <ledger.edn> <reserves.edn> <as-of> <out-dir>
 ;;
 ;; ledger.edn   — the append-only event vector (cryptoexchange.ledger events)

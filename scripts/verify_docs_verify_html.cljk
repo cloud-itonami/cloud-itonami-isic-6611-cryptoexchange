@@ -11,7 +11,7 @@
 ;; cryptoexchange.attest's own verify-inclusion.
 ;;
 ;; Run (verified 2026-07-15 with nbb via npx):
-;;   nbb scripts/verify_docs_verify_html.cljk
+;;   kbb --backend sci scripts/verify_docs_verify_html.cljk
 ;;
 ;; This is a standalone script, not wired into the cognitect test-runner/
 ;; portable-cljs-test-runner suites: it tests a static HTML deliverable,

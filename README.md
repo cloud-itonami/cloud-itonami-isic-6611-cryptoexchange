@@ -68,9 +68,9 @@ publishes the business blueprint plus:
   design/testnet-only: no real funds, keys, or chain broadcast (INV-14).
 
 The suite is portable `.cljc`; the **primary gate is ClojureScript**
-(`clojure -Sdeps '{:paths ["src" "test"]}' -M:cljs -m cljs.main
+(`kbb -Sdeps '{:paths ["src" "test"]}' -M:cljs -m cljs.main
 --target node -m cryptoexchange.portable-cljs-test-runner`), JVM
-(`clojure -M:test`) is the compat gate. There is **no actor
+(`kbb -M:test`) is the compat gate. There is **no actor
 implementation yet**, and none is claimed. Division 66 sits in **rollout Wave 0
 (settlement-information root)** of the reverse-toposort plan
 (ADR-2607121000), so implementation is *not* robotics-gated — it is

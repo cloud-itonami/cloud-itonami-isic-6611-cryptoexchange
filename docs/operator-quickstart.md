@@ -4,7 +4,7 @@
 ```bash
 git clone https://github.com/cloud-itonami/cloud-itonami-isic-6611-cryptoexchange.git
 cd cloud-itonami-isic-6611-cryptoexchange
-clojure -M:test
+kbb -M:test
 open docs/index.html
 ```
 
