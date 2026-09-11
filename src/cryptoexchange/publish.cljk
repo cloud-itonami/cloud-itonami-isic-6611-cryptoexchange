@@ -8,7 +8,7 @@
 
   Runtime split (repo rule: logic in portable .cljc, scripts in nbb):
   this ns is the logic and is exercised by the CLJS primary + JVM
-  compat gates; `scripts/publish_attestation.cljs` is the thin nbb
+  compat gates; `scripts/publish_attestation.cljk` is the thin nbb
   shell that does the file I/O around it.
 
   Reserves come in as attested inputs, per asset:
