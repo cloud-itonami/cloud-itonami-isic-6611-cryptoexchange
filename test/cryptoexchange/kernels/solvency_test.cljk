@@ -2,7 +2,7 @@
   "Executable spec for the solvency kernel: battery lock + parity
   matrix against an independent restatement of INV-1/INV-3 in ordinary
   set/cond Clojure (kernels discipline, ADR-2607121200)."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [cryptoexchange.kernels.solvency :as solvency]))
 
 (deftest battery-lock

@@ -2,7 +2,7 @@
   "Executable spec for the conservation kernel: battery lock + parity
   matrix against an independent restatement of INV-5/INV-6 (kernels
   discipline, ADR-2607121200)."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [cryptoexchange.kernels.conservation :as conservation]))
 
 (deftest battery-lock

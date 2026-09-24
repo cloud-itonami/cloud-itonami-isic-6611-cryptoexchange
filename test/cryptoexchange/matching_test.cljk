@@ -3,7 +3,7 @@
   price-time priority, maker price rule, strictest self-trade
   prevention, total order, third-party replay, and the ledger seam
   (INV-11/INV-4 of ADR-2607141200)."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [cryptoexchange.ledger :as ledger]
             [cryptoexchange.matching :as matching]))
 

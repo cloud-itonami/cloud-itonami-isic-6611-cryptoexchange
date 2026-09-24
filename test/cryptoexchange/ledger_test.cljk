@@ -3,7 +3,7 @@
   construction, balances as pure folds, no negative balances by
   construction, dual-control adjustments, and the conservation-kernel
   seam (INV-5/INV-6 of ADR-2607141200)."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [cryptoexchange.governor :as governor]
             [cryptoexchange.ledger :as ledger]))
 

@@ -4,7 +4,7 @@
   proofs, sum-shrinking rejection, cross-runtime root determinism
   (pinned fixture hash), and the solvency-kernel judgment on the
   public artifact."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [cryptoexchange.attest :as attest]
             [cryptoexchange.ledger :as ledger]))
 

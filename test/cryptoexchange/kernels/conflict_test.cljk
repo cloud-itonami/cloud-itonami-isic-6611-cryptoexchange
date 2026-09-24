@@ -2,7 +2,7 @@
   "Executable spec for the conflict kernel: battery lock + parity
   matrix against an independent bit-composition restatement of
   INV-2/INV-4 (kernels discipline, ADR-2607121200)."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [cryptoexchange.kernels.conflict :as conflict]))
 
 (deftest battery-lock

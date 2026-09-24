@@ -4,7 +4,7 @@
   carries, and the censor gates on `:stake` (the actuation ops must be
   structurally `:actuation` so they always escalate). These tests pin
   that contract independently of the actor graph."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [cryptoexchange.advisor :as advisor]))
 
 (deftest reads-are-noop-proposals

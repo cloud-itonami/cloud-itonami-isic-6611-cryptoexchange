@@ -3,7 +3,7 @@
   kernels. Every façade result is recomputed through the raw kernel
   wire codes (full-matrix parity), and the fail-closed boolean
   conversion at the boundary is pinned in both directions."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [cryptoexchange.governor :as governor]
             [cryptoexchange.kernels.conservation :as conservation]
             [cryptoexchange.kernels.custody :as custody]

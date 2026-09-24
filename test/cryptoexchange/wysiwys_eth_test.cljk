@@ -4,7 +4,7 @@
   and decoded back, so the RLP decode direction is verified against the
   encode direction it must invert; destination addresses are checked
   against eth-crypto's `eip55-checksum`."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [kotoba.lang.text :as str]
             [eth-crypto.core :as eth]
             [cryptoexchange.kernels.custody :as custody]

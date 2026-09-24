@@ -4,7 +4,7 @@
   user's inclusion proof, that solvency is judged per asset by the
   kernel, and that the published proofs actually verify against the
   published roots."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             #?(:clj [clojure.edn :as edn]
                :cljs [cljs.reader :as edn])
             [cryptoexchange.attest :as attest]

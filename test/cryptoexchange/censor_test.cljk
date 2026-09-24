@@ -3,7 +3,7 @@
   composition of the four safety kernels; these tests pin the routing
   (which kernel gates which op) and the HARD-over-escalate-over-commit
   precedence. Portable — runs under the CLJS primary gate."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [cryptoexchange.censor :as censor]))
 
 (def ^:private clean-attest

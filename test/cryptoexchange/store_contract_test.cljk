@@ -6,7 +6,7 @@
   is what makes 'swap the SSoT for Datomic / kotoba-server' a
   configuration change, not a rewrite. Same pattern as
   `underwriting.store-contract-test` and its siblings."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [cryptoexchange.attest :as attest]
             [cryptoexchange.ledger :as ledger]
             [cryptoexchange.matching :as matching]
