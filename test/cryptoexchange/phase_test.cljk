@@ -2,7 +2,7 @@
   "Executable spec for the rollout phase gate (M4). Pins the structural
   invariant — the actuation ops are never auto-eligible at ANY phase —
   and the phase-widening ladder. Portable (CLJS primary gate)."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [cryptoexchange.phase :as phase]))
 
 (deftest actuation-never-auto-at-any-phase

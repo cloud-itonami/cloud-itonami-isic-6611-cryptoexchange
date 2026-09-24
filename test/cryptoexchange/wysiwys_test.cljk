@@ -3,7 +3,7 @@
   INV-10). The flag is 1 only when two independent decoders agree AND
   match intent; every tamper axis drops it to 0 and the custody kernel
   then returns code 6 (verifier-mismatch)."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [cryptoexchange.kernels.custody :as custody]
             [cryptoexchange.wysiwys :as wysiwys]))
 

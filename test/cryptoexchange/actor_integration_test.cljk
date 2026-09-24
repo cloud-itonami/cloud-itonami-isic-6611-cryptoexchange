@@ -7,7 +7,7 @@
   to CLJS-test the decision cores (censor/phase/kernels/store) and drive
   the graph on the JVM (mirrors cloud-itonami-isic-6511, whose graph is
   likewise not in its cljs runner)."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [langgraph.graph :as g]
             [cryptoexchange.actor :as actor]
             [cryptoexchange.ledger :as ledger]
