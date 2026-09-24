@@ -5,7 +5,7 @@
   kernel, and that the published proofs actually verify against the
   published roots."
   (:require [kotoba.test :refer [deftest is testing]]
-            #?(:clj [clojure.edn :as edn]
+            #?(:clj [kotoba.lang.edn :as edn]
                :cljs [cljs.reader :as edn])
             [cryptoexchange.attest :as attest]
             [cryptoexchange.ledger :as ledger]
