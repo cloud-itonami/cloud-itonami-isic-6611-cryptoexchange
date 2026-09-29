@@ -2,7 +2,7 @@
   "PRIMARY automated quality gate for this repo under a real
   ClojureScript host (cljs.main --target node) — the same runtime-
   priority rule as gftdcojp/cloud-itonami's ADR-0016 / the superproject
-  CLAUDE.md:
+  AGENTS.md:
 
       kotoba wasm runtime  >  clojurewasm  >  ClojureScript  >  nbb
       (JVM / babashka are last-resort compat, not the design target)

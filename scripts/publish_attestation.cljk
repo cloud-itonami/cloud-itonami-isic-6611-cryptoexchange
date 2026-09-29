@@ -1,6 +1,6 @@
 ;; Thin nbb (ClojureScript-on-Node) shell around cryptoexchange.publish —
 ;; the repo's runtime rule (logic in portable .cljc, scripts in nbb;
-;; superproject CLAUDE.md 2026-07-10). ALL the load-bearing logic lives
+;; superproject AGENTS.md 2026-07-10). ALL the load-bearing logic lives
 ;; in src/cryptoexchange/publish.cljk (+ attest/ledger), which the CLJS
 ;; primary and JVM compat gates test; this file only reads the ledger
 ;; and reserve EDN, folds them, and writes the two public artifacts.
